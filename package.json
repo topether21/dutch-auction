@@ -1,0 +1,23 @@
+{
+  "name": "aws-serverless-typescript-api",
+  "version": "1.0.0",
+  "description": "Serverless Auction",
+  "main": "handle.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=16.x"
+  },
+  "author": "topether21",
+  "license": "MIT",
+  "devDependencies": {
+    "serverless-esbuild": "^1.44.0",
+    "serverless-step-functions": "^3.13.1"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1376.0",
+    "nostr-tools": "^1.10.1",
+    "uuid": "^9.0.0"
+  }
+}

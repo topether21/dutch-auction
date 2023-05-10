@@ -1,0 +1,145 @@
+service: dutch-auction
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  stage: ${opt:stage, 'dev'}
+  region: us-east-1
+  environment:
+    DYNAMODB_TABLE: AuctionStates-${self:provider.stage}
+    STATE_MACHINE_NAME: DutchAuctionStateMachine
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "dynamodb:Query"
+            - "dynamodb:Scan"
+            - "dynamodb:GetItem"
+            - "dynamodb:PutItem"
+            - "dynamodb:UpdateItem"
+            - "dynamodb:DeleteItem"
+          Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+        - Effect: "Allow"
+          Action:
+            - "states:StartExecution"
+          Resource: "arn:aws:states:${opt:region, self:provider.region}:*:stateMachine:${self:provider.environment.STATE_MACHINE_NAME}"
+        - Effect: "Allow"
+          Action:
+            - "events:PutEvents"
+          Resource: "*"
+functions:
+  createAuction:
+    handler: handler.createAuction
+    events:
+      - http:
+          path: createAuction
+          method: post
+          cors: true
+  getAuctionStatus:
+    handler: handler.getAuctionStatus
+    events:
+      - http:
+          path: auctions/{auctionId}
+          method: get
+          cors: true
+  getAuctions:
+    handler: handler.getAuctions
+    events:
+      - http:
+          path: auctions
+          method: get
+          cors: true
+  startAuction:
+    handler: handler.startAuction
+    events:
+      - http:
+          path: startAuction
+          method: post
+          cors: true
+      - eventBridge:
+          eventBus: default
+          pattern:
+            source:
+              - dutch-auction.custom
+            detail-type:
+              - AuctionScheduled
+    environment:
+      STATE_MACHINE_ARN:
+        Ref: DutchAuctionStateMachine
+  updateAuctionState:
+    handler: handler.updateAuctionState
+    events:
+      - http:
+          path: updateAuctionState
+          method: post
+          cors: true
+  checkIfAuctionBought:
+    handler: handler.checkIfAuctionBought
+    events:
+      - http:
+          path: checkIfAuctionBought
+          method: post
+          cors: true
+  publishEventToNostr:
+    handler: handler.publishEventToNostr
+    events:
+      - http:
+          path: publishEventToNostr
+          method: post
+          cors: true
+
+resources:
+  Resources:
+    AuctionStatesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    DutchAuctionStateMachine:
+      Type: AWS::StepFunctions::StateMachine
+      Properties:
+        StateMachineName: ${self:provider.environment.STATE_MACHINE_NAME}
+        DefinitionString:
+          Fn::Sub:
+            - |-
+              {
+                "StartAt": "UpdateAuctionState",
+                "States": {
+                  "UpdateAuctionState": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaFunctionName}",
+                    "End": true
+                  }
+                }
+              }
+            - { LambdaFunctionName: "UpdateAuctionStateLambda" }
+        RoleArn:
+          Fn::GetAtt: [DutchAuctionStateMachineRole, Arn]
+    DutchAuctionStateMachineRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: states.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: DutchAuctionStateMachineRolePolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource: "*"
