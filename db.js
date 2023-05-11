@@ -1,5 +1,6 @@
-const AWS = require("aws-sdk");
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb"),
+  { DynamoDB } = require("@aws-sdk/client-dynamodb");
+const dynamoDb = DynamoDBDocument.from(new DynamoDB());
 
 const saveAuction = async (auction) => {
   const params = {
@@ -7,7 +8,7 @@ const saveAuction = async (auction) => {
     Item: auction,
   };
 
-  await dynamoDb.put(params).promise();
+  await dynamoDb.put(params);
 };
 
 async function listAuctions() {
@@ -16,7 +17,7 @@ async function listAuctions() {
   };
 
   try {
-    const result = await dynamoDb.scan(params).promise();
+    const result = await dynamoDb.scan(params);
     return result.Items;
   } catch (error) {
     console.error(error);
@@ -33,7 +34,7 @@ const getAuction = async (auctionId) => {
   };
 
   try {
-    const result = await dynamoDb.get(params).promise();
+    const result = await dynamoDb.get(params);
     return result.Item;
   } catch (error) {
     console.error(error);
@@ -47,18 +48,35 @@ const updateAuctionState = async (auctionId, updatedState) => {
     Key: {
       id: auctionId,
     },
+    UpdateExpression: "set currentPrice = :currentPrice, status = :status",
+    ExpressionAttributeValues: {
+      ":currentPrice": updatedState.currentPrice,
+      ":status": updatedState.status,
+    },
+  };
+
+  await dynamoDb.update(params);
+};
+
+const updateAuctionPrice = async (auctionId, updatedState) => {
+  const params = {
+    TableName: process.env.DYNAMODB_TABLE,
+    Key: {
+      id: auctionId,
+    },
     UpdateExpression: "set currentPrice = :currentPrice",
     ExpressionAttributeValues: {
       ":currentPrice": updatedState.currentPrice,
     },
   };
 
-  await dynamoDb.update(params).promise();
+  await dynamoDb.update(params);
 };
 
 module.exports = {
   saveAuction,
   getAuction,
   updateAuctionState,
+  updateAuctionPrice,
   listAuctions,
 };

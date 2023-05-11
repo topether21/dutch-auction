@@ -1,13 +1,14 @@
 service: dutch-auction
+frameworkVersion: "3"
 
 provider:
   name: aws
-  runtime: nodejs16.x
+  runtime: nodejs18.x
   stage: ${opt:stage, 'dev'}
   region: us-east-1
   environment:
     DYNAMODB_TABLE: AuctionStates-${self:provider.stage}
-    STATE_MACHINE_NAME: DutchAuctionStateMachine
+    STATE_MACHINE_NAME: DutchAuctionStateMachine-${self:provider.stage}
   iam:
     role:
       statements:
@@ -22,12 +23,17 @@ provider:
           Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
         - Effect: "Allow"
           Action:
-            - "states:StartExecution"
-          Resource: "arn:aws:states:${opt:region, self:provider.region}:*:stateMachine:${self:provider.environment.STATE_MACHINE_NAME}"
+            - "events:PutEvents"
+          Resource: "arn:aws:events:${opt:region, self:provider.region}:*:event-bus/default"
         - Effect: "Allow"
           Action:
-            - "events:PutEvents"
+            - "states:StartExecution"
           Resource: "*"
+        - Effect: "Allow"
+          Action:
+            - "lambda:InvokeFunction"
+          Resource: "*"
+
 functions:
   createAuction:
     handler: handler.createAuction
@@ -51,22 +57,17 @@ functions:
           method: get
           cors: true
   startAuction:
-    handler: handler.startAuction
-    events:
-      - http:
-          path: startAuction
-          method: post
-          cors: true
-      - eventBridge:
-          eventBus: default
-          pattern:
-            source:
-              - dutch-auction.custom
-            detail-type:
-              - AuctionScheduled
     environment:
       STATE_MACHINE_ARN:
         Ref: DutchAuctionStateMachine
+    handler: handler.startAuction
+    events:
+      - eventBridge:
+          pattern:
+            source:
+              - dutch-auction.start
+            detail-type:
+              - AuctionScheduled
   updateAuctionState:
     handler: handler.updateAuctionState
     events:
@@ -88,6 +89,40 @@ functions:
           path: publishEventToNostr
           method: post
           cors: true
+
+custom:
+  stepFunctions:
+    stateMachines:
+      DutchAuctionStateMachine:
+        definition:
+          Comment: "A Step Function to manage the Dutch Auction process."
+          StartAt: InitializeAuction
+          States:
+            InitializeAuction:
+              Type: Pass
+              ResultPath: "$"
+              Next: UpdateAuctionState
+            UpdateAuctionState:
+              Type: Task
+              Resource: "arn:aws:lambda:${self:provider.region}:${self:provider.stage}:function:${self:service}-${self:provider.stage}-updateAuctionState"
+              ResultPath: "$"
+              Next: IsAuctionFinished
+            IsAuctionFinished:
+              Type: Choice
+              Choices:
+                - Variable: "$.currentPrice"
+                  NumericLessThanOrEqual: "$.minPrice"
+                  Next: AuctionFinished
+                - Variable: "$.auctionFinished"
+                  BooleanEquals: true
+                  Next: AuctionFinished
+              Default: WaitRoundDuration
+            WaitRoundDuration:
+              Type: Wait
+              SecondsPath: "$.roundDuration"
+              Next: UpdateAuctionState
+            AuctionFinished:
+              Type: Succeed
 
 resources:
   Resources:
@@ -143,3 +178,6 @@ resources:
                   Action:
                     - lambda:InvokeFunction
                   Resource: "*"
+
+plugins:
+  - serverless-step-functions
