@@ -42,16 +42,41 @@ const getAuction = async (auctionId) => {
   }
 };
 
+const finishAuction = async (auctionId) => {
+  const params = {
+    TableName: process.env.DYNAMODB_TABLE,
+    Key: { id: auctionId },
+    UpdateExpression: "set #status = :status",
+    ExpressionAttributeValues: {
+      ":status": "FINISHED",
+    },
+    ExpressionAttributeNames: {
+      "#status": "status",
+    },
+  };
+
+  try {
+    await dynamoDb.update(params);
+    return { status: "FINISHED" };
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
 const updateAuctionState = async (auctionId, updatedState) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {
       id: auctionId,
     },
-    UpdateExpression: "set currentPrice = :currentPrice, status = :status",
+    UpdateExpression: "set currentPrice = :currentPrice, #status = :status",
     ExpressionAttributeValues: {
       ":currentPrice": updatedState.currentPrice,
       ":status": updatedState.status,
+    },
+    ExpressionAttributeNames: {
+      "#status": "status",
     },
   };
 
@@ -79,4 +104,5 @@ module.exports = {
   updateAuctionState,
   updateAuctionPrice,
   listAuctions,
+  finishAuction,
 };

@@ -7,8 +7,10 @@ provider:
   stage: ${opt:stage, 'dev'}
   region: us-east-1
   environment:
+    STAGE: ${self:provider.stage}
+    AWS_ACCOUNT_ID:
+      Ref: "AWS::AccountId"
     DYNAMODB_TABLE: AuctionStates-${self:provider.stage}
-    STATE_MACHINE_NAME: DutchAuctionStateMachine-${self:provider.stage}
 
   iam:
     role:
@@ -33,6 +35,12 @@ provider:
         - Effect: "Allow"
           Action:
             - "lambda:InvokeFunction"
+          Resource: "*"
+        - Effect: "Allow"
+          Action:
+            - "logs:CreateLogGroup"
+            - "logs:CreateLogStream"
+            - "logs:PutLogEvents"
           Resource: "*"
 
 functions:
@@ -59,8 +67,7 @@ functions:
           cors: true
   startAuction:
     environment:
-      STATE_MACHINE_ARN:
-        Ref: DutchAuctionStateMachine
+      STATE_MACHINE_ARN: arn:aws:states:us-east-1:#{AWS::AccountId}:stateMachine:DutchAuctionStateMachine-${self:provider.stage}
     handler: handler.startAuction
     events:
       - eventBridge:
@@ -72,11 +79,9 @@ functions:
 
   updateAuctionState:
     handler: handler.updateAuctionState
-    events:
-      - http:
-          path: updateAuctionState
-          method: post
-          cors: true
+  finishAuction:
+    handler: handler.finishAuction
+
   checkIfAuctionBought:
     handler: handler.checkIfAuctionBought
     events:
@@ -92,39 +97,43 @@ functions:
           method: post
           cors: true
 
-custom:
-  stepFunctions:
-    stateMachines:
-      DutchAuctionStateMachine:
-        definition:
-          Comment: "A Step Function to manage the Dutch Auction process."
-          StartAt: InitializeAuction
-          States:
-            InitializeAuction:
-              Type: Pass
-              ResultPath: "$"
-              Next: UpdateAuctionState
-            UpdateAuctionState:
-              Type: Task
-              Resource: "arn:aws:lambda:${self:provider.region}:${self:provider.stage}:function:${self:service}-${self:provider.stage}-updateAuctionState"
-              ResultPath: "$"
-              Next: IsAuctionFinished
-            IsAuctionFinished:
-              Type: Choice
-              Choices:
-                - Variable: "$.currentPrice"
-                  NumericLessThanOrEqual: "$.minPrice"
-                  Next: AuctionFinished
-                - Variable: "$.auctionFinished"
-                  BooleanEquals: true
-                  Next: AuctionFinished
-              Default: WaitRoundDuration
-            WaitRoundDuration:
-              Type: Wait
-              SecondsPath: "$.roundDuration"
-              Next: UpdateAuctionState
-            AuctionFinished:
-              Type: Succeed
+stepFunctions:
+  stateMachines:
+    DutchAuctionStateMachine:
+      name: DutchAuctionStateMachine-${self:provider.stage}
+      definition:
+        Comment: "A Step Function to manage the Dutch Auction process."
+        StartAt: InitializeAuction
+        States:
+          InitializeAuction:
+            Type: Pass
+            ResultPath: "$"
+            Next: UpdateAuctionState
+          UpdateAuctionState:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [updateAuctionState, Arn]
+            ResultPath: "$"
+            Next: IsAuctionFinished
+          IsAuctionFinished:
+            Type: Choice
+            Choices:
+              - Variable: "$.currentPrice"
+                NumericLessThanEqualsPath: "$.minPrice"
+                Next: AuctionFinished
+              - Variable: "$.auctionFinished"
+                BooleanEquals: true
+                Next: AuctionFinished
+            Default: WaitRoundDuration
+          WaitRoundDuration:
+            Type: Wait
+            SecondsPath: "$.roundDuration"
+            Next: UpdateAuctionState
+          AuctionFinished:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [finishAuction, Arn]
+            End: true
 
 resources:
   Resources:
@@ -141,45 +150,6 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
-    DutchAuctionStateMachine:
-      Type: AWS::StepFunctions::StateMachine
-      Properties:
-        StateMachineName: ${self:provider.environment.STATE_MACHINE_NAME}
-        DefinitionString:
-          Fn::Sub:
-            - |-
-              {
-                "StartAt": "UpdateAuctionState",
-                "States": {
-                  "UpdateAuctionState": {
-                    "Type": "Task",
-                    "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaFunctionName}",
-                    "End": true
-                  }
-                }
-              }
-            - { LambdaFunctionName: "UpdateAuctionStateLambda" }
-        RoleArn:
-          Fn::GetAtt: [DutchAuctionStateMachineRole, Arn]
-    DutchAuctionStateMachineRole:
-      Type: AWS::IAM::Role
-      Properties:
-        AssumeRolePolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Principal:
-                Service: states.amazonaws.com
-              Action: sts:AssumeRole
-        Policies:
-          - PolicyName: DutchAuctionStateMachineRolePolicy
-            PolicyDocument:
-              Version: "2012-10-17"
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - lambda:InvokeFunction
-                  Resource: "*"
 
 plugins:
   - serverless-step-functions

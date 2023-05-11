@@ -3,6 +3,7 @@ const {
   EventBridgeClient,
   PutEventsCommand,
 } = require("@aws-sdk/client-eventbridge");
+const Decimal = require("decimal.js");
 
 const { v4 } = require("uuid");
 const createError = require("http-errors");
@@ -13,7 +14,7 @@ const eventBridge = new EventBridgeClient({});
 
 async function startStateMachine(auction) {
   const params = {
-    stateMachineArn: process.env.STATE_MACHINE_ARN,
+    stateMachineArn: `arn:aws:states:${process.env.AWS_REGION}:${process.env.AWS_ACCOUNT_ID}:stateMachine:DutchAuctionStateMachine-${process.env.STAGE}`,
     name: auction.id, // unique name for the execution
     input: JSON.stringify(auction),
   };
@@ -24,10 +25,10 @@ async function startStateMachine(auction) {
 
   try {
     const { executionArn } = await stepFunctions.send(command);
-    console.log(`Started execution for state machine. ARN: ${executionArn}`);
+    console.log(`Started execution for status machine. ARN: ${executionArn}`);
     return executionArn;
   } catch (error) {
-    console.error(`Failed to start state machine: ${error}`);
+    console.error(`Failed to start status machine: ${error}`);
     throw error;
   }
 }
@@ -52,7 +53,7 @@ const createAuction = async (event) => {
     status: "PENDING",
   };
 
-  console.log("Received event body:", JSON.parse(event.body)); // Log the received body
+  console.log("Received event body:", JSON.parse(event.body));
 
   try {
     await db.saveAuction(auction);
@@ -117,7 +118,7 @@ const startAuction = async (event) => {
 
     auction.executionArn = executionArn;
 
-    await db.updateAuctionState(auction);
+    await db.updateAuctionState(id, auction);
 
     return {
       statusCode: 200,
@@ -190,22 +191,24 @@ const publishEventToNostr = async (event) => {
 };
 
 async function updateAuctionState(event) {
-  const { id, minPrice, decreaseAmount } = JSON.parse(event.input);
+  console.log("event:", JSON.stringify(event, null, 2));
+  const { id, minPrice, decreaseAmount } = event;
   const auction = await db.getAuction(id);
 
   if (!auction) {
     throw new createError.NotFound(`Auction with ID "${id}" not found.`);
   }
 
-  let currentPrice = auction.currentPrice - decreaseAmount;
-  if (currentPrice < minPrice) {
-    currentPrice = minPrice;
+  let newPrice = new Decimal(auction.currentPrice).minus(decreaseAmount);
+  if (newPrice.lessThan(minPrice)) {
+    newPrice = new Decimal(minPrice);
   }
 
+  const currentPrice = newPrice.toNumber();
   auction.currentPrice = currentPrice;
   await db.updateAuctionPrice(id, auction);
 
-  const auctionFinished = currentPrice === minPrice;
+  const auctionFinished = newPrice.equals(minPrice);
   return {
     ...auction,
     currentPrice,
@@ -213,11 +216,31 @@ async function updateAuctionState(event) {
   };
 }
 
+async function finishAuction(event) {
+  console.log("event:", JSON.stringify(event, null, 2));
+  const { id } = event;
+  const auction = await db.getAuction(id);
+
+  if (!auction) {
+    throw new createError.NotFound(`Auction with ID "${id}" not found.`);
+  }
+
+  if (auction.status !== "FINISHED") {
+    auction.status = "FINISHED";
+    await db.finishAuction(id);
+  }
+
+  console.log(`Auction ${id} status set to FINISHED`);
+
+  return auction;
+}
+
 module.exports = {
   createAuction,
   getAuctionStatus,
   getAuctions,
   startAuction,
+  finishAuction,
   updateAuctionState,
   checkIfAuctionBought,
   publishEventToNostr,
