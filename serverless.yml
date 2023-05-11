@@ -9,6 +9,7 @@ provider:
   environment:
     DYNAMODB_TABLE: AuctionStates-${self:provider.stage}
     STATE_MACHINE_NAME: DutchAuctionStateMachine-${self:provider.stage}
+
   iam:
     role:
       statements:
@@ -24,7 +25,7 @@ provider:
         - Effect: "Allow"
           Action:
             - "events:PutEvents"
-          Resource: "arn:aws:events:${opt:region, self:provider.region}:*:event-bus/default"
+          Resource: "*"
         - Effect: "Allow"
           Action:
             - "states:StartExecution"
@@ -65,9 +66,10 @@ functions:
       - eventBridge:
           pattern:
             source:
-              - dutch-auction.start
+              - "dutch-auction.start"
             detail-type:
-              - AuctionScheduled
+              - "AuctionScheduled"
+
   updateAuctionState:
     handler: handler.updateAuctionState
     events:

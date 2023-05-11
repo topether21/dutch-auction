@@ -11,6 +11,27 @@ const db = require("./db");
 const stepFunctions = new SFNClient({});
 const eventBridge = new EventBridgeClient({});
 
+async function startStateMachine(auction) {
+  const params = {
+    stateMachineArn: process.env.STATE_MACHINE_ARN,
+    name: auction.id, // unique name for the execution
+    input: JSON.stringify(auction),
+  };
+
+  console.log("startStateMachine:", JSON.stringify(params, null, 2));
+
+  const command = new StartExecutionCommand(params);
+
+  try {
+    const { executionArn } = await stepFunctions.send(command);
+    console.log(`Started execution for state machine. ARN: ${executionArn}`);
+    return executionArn;
+  } catch (error) {
+    console.error(`Failed to start state machine: ${error}`);
+    throw error;
+  }
+}
+
 const createAuction = async (event) => {
   const {
     startPrice,
@@ -31,6 +52,8 @@ const createAuction = async (event) => {
     status: "PENDING",
   };
 
+  console.log("Received event body:", JSON.parse(event.body)); // Log the received body
+
   try {
     await db.saveAuction(auction);
 
@@ -42,18 +65,66 @@ const createAuction = async (event) => {
           DetailType: "AuctionScheduled",
           Detail: JSON.stringify({ id }),
           EventBusName: "default",
-          Time: new Date(startTimestamp),
+          Time: new Date(startTimestamp * 1000), // Convert Unix timestamp to JavaScript Date
         },
       ],
     });
-    await eventBridge.send(command);
+
+    console.log(
+      "Sending event to EventBridge:",
+      JSON.stringify(command, null, 2)
+    );
+
+    const response = await eventBridge.send(command);
+
+    console.log("EventBridge response:", JSON.stringify(response, null, 2));
 
     return {
       statusCode: 200,
       body: JSON.stringify(auction),
     };
   } catch (error) {
-    console.error(error);
+    console.error("Error in createAuction:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Internal Server Error" }),
+    };
+  }
+};
+
+const startAuction = async (event) => {
+  console.log(
+    "Received event in startAuction:",
+    JSON.stringify(event, null, 2)
+  );
+
+  const { id } = event.detail;
+
+  try {
+    const auction = await db.getAuction(id);
+
+    console.log("Retrieved auction:", JSON.stringify(auction, null, 2));
+
+    if (auction.status !== "PENDING") {
+      throw new createError.BadRequest(
+        `Auction with ID "${id}" is not pending. Current status: ${auction.status}`
+      );
+    }
+
+    auction.status = "RUNNING";
+
+    const executionArn = await startStateMachine(auction);
+
+    auction.executionArn = executionArn;
+
+    await db.updateAuctionState(auction);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(auction),
+    };
+  } catch (error) {
+    console.error("Error in startAuction:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: "Internal Server Error" }),
@@ -103,45 +174,6 @@ const getAuctions = async () => {
     };
   }
 };
-
-async function startAuction(event) {
-  const { id } = JSON.parse(event.detail);
-
-  const auction = await db.getAuction(id);
-  if (!auction) {
-    throw new createError.NotFound(`Auction with ID "${id}" not found.`);
-  }
-
-  if (auction.status !== "PENDING") {
-    throw new createError.BadRequest(
-      `Auction with ID "${id}" is not in a "PENDING" state.`
-    );
-  }
-
-  await db.updateAuctionState(id, {
-    ...auction,
-    status: "IN_PROGRESS",
-  });
-
-  const params = {
-    stateMachineArn: process.env.STATE_MACHINE_ARN,
-    input: JSON.stringify({
-      id,
-      startPrice: auction.startPrice,
-      minPrice: auction.minPrice,
-      decreaseAmount: auction.decreaseAmount,
-      roundDuration: auction.roundDuration,
-    }),
-  };
-
-  const command = new StartExecutionCommand(params);
-  await stepFunctions.send(command);
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify(auction),
-  };
-}
 
 const checkIfAuctionBought = async (event) => {
   return {
