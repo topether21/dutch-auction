@@ -1,5 +1,5 @@
+require("websocket-polyfill");
 const { getEventHash, relayInit, signEvent } = require("nostr-tools");
-const { sign } = require("./sign-event");
 
 const NOSTR_KIND_INSCRIPTION = 802;
 const NOSTR_RELAY_URL = "wss://nostr.openordex.org";
@@ -42,7 +42,13 @@ function getSellEvent({
   return event;
 }
 
-async function signEvent({ utxo, priceInSats, signedPsbt, pubkey, privkey }) {
+async function signNostrEvent({
+  utxo,
+  priceInSats,
+  signedPsbt,
+  pubkey,
+  privkey,
+}) {
   const { inscriptionId } = utxo;
   const inscriptionUtxo = `${utxo.txid}:${utxo.vout}`;
 
@@ -53,7 +59,7 @@ async function signEvent({ utxo, priceInSats, signedPsbt, pubkey, privkey }) {
     signedPsbt,
     pubkey,
   });
-  const signedEvent = await sign(event);
+  const signedEvent = await sign(event, privkey);
   return signedEvent;
 }
 
@@ -64,7 +70,7 @@ async function signAndBroadcastEvent({
   pubkey,
   privkey,
 }) {
-  const signedEvent = await signEvent({
+  const signedEvent = await signNostrEvent({
     utxo,
     priceInSats,
     signedPsbt,
@@ -81,41 +87,49 @@ const publishEvent = async (event) => {
   const promises = RELAYS.map(
     (url) =>
       new Promise((resolve, reject) => {
-        const relay = relayInit(url);
-        const timeout = 10000;
+        try {
+          const relay = relayInit(url);
+          const timeout = 10000;
 
-        function timeoutAndClose() {
-          console.error(`Timeout error: event ${event.id} relay ${url}`);
-          relay.close();
-          reject();
+          function timeoutAndClose() {
+            console.error(`Timeout error: event ${event.id} relay ${url}`);
+            relay.close();
+            reject();
+          }
+          let timeoutCheck = setTimeout(timeoutAndClose, timeout);
+
+          relay.on("connect", () => {
+            console.info(`Sending ${event.id} to ${url}`, event);
+            const pub = relay.publish(event);
+            pub.on("ok", () => {
+              console.info(`Event ${event.id} published to ${url}`);
+              relay.close();
+              clearTimeout(timeoutCheck);
+              resolve();
+            });
+            pub.on("failed", (reason) => {
+              console.warn(
+                `Failed to publish ${event.id} to ${url}: ${reason}`
+              );
+              relay.close();
+              clearTimeout(timeoutCheck);
+              resolve();
+            });
+          });
+
+          relay.on("error", (msg) => {
+            console.error(`Failed to connect to ${url}`, JSON.stringify(msg));
+            clearTimeout(timeoutCheck);
+            relay.close();
+            resolve();
+          });
+
+          return relay.connect();
+        } catch (error) {
+          console.error("Failed to publish");
+          console.error(error);
+          reject(e);
         }
-        let timeoutCheck = setTimeout(timeoutAndClose, timeout);
-
-        relay.on("connect", () => {
-          console.info(`Sending ${event.id} to ${url}`, event);
-          const pub = relay.publish(event);
-          pub.on("ok", () => {
-            console.info(`Event ${event.id} published to ${url}`);
-            relay.close();
-            clearTimeout(timeoutCheck);
-            resolve();
-          });
-          pub.on("failed", (reason) => {
-            console.warn(`Failed to publish ${event.id} to ${url}: ${reason}`);
-            relay.close();
-            clearTimeout(timeoutCheck);
-            resolve();
-          });
-        });
-
-        relay.on("error", (msg) => {
-          console.error(`Failed to connect to ${url}`, JSON.stringify(msg));
-          clearTimeout(timeoutCheck);
-          relay.close();
-          resolve();
-        });
-
-        return relay.connect();
       })
   );
 
