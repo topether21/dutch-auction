@@ -20,6 +20,7 @@
     "@aws-sdk/client-dynamodb": "^3.332.0",
     "@aws-sdk/client-eventbridge": "^3.329.0",
     "@aws-sdk/client-sfn": "^3.329.0",
+    "@aws-sdk/lib-dynamodb": "^3.332.0",
     "decimal.js": "^10.4.3",
     "http-errors": "^2.0.0",
     "nostr-tools": "^1.10.1",

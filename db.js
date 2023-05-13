@@ -1,50 +1,19 @@
-const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDB } = require("@aws-sdk/client-dynamodb");
 
-const client = new DynamoDBDocumentClient({ client: new DynamoDBClient() });
+const client = DynamoDBDocument.from(new DynamoDB());
 
 const saveAuction = async (auction) => {
-  const Item = {
-    id: auction.id,
-    initialPrice: auction.initialPrice,
-    startTime: auction.startTime,
-    metadata: auction.metadata?.map((item) => ({
-      price: item.price,
-      scheduledTime: item.scheduledTime,
-      signedPsbt: item.signedPsbt,
-    })),
-    status: auction.status,
-    decreaseAmount: auction.decreaseAmount,
-    reservePrice: auction.reservePrice,
-    currentPrice: auction.currentPrice,
-    decreaseInterval: auction.decreaseInterval,
-  };
-
-  // Remove undefined values
-  Object.keys(Item).forEach(
-    (key) => Item[key] === undefined && delete Item[key]
-  );
-
-  // Filter metadata array
-  if (Item.metadata) {
-    Item.metadata = Item.metadata.filter(
-      (item) =>
-        item.price !== undefined &&
-        item.scheduledTime !== undefined &&
-        item.signedPsbt !== undefined
-    );
-  }
-
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
-    Item,
+    Item: auction,
   };
 
   try {
     await client.put(params);
   } catch (error) {
-    console.error(error);
-    throw new Error(`Unable to save auction: ${error.message}`);
+    console.error(`Error saving auction: ${error}`);
+    throw error;
   }
 };
 
@@ -57,8 +26,8 @@ const listAuctions = async () => {
     const { Items } = await client.scan(params);
     return Items;
   } catch (error) {
-    console.error(error);
-    throw new Error(`Unable to list auctions: ${error.message}`);
+    console.error(`Error listing auctions: ${error}`);
+    throw error;
   }
 };
 
@@ -74,8 +43,8 @@ const getAuction = async (auctionId) => {
     const { Item } = await client.get(params);
     return Item;
   } catch (error) {
-    console.error(error);
-    throw new Error(`Unable to get auction: ${error.message}`);
+    console.error(`Error getting auction: ${error}`);
+    throw error;
   }
 };
 
@@ -96,8 +65,8 @@ const finishAuction = async (auctionId) => {
     await client.update(params);
     return { status: "FINISHED" };
   } catch (error) {
-    console.error(error);
-    throw new Error(`Unable to finish auction: ${error.message}`);
+    console.error(`Error finishing auction: ${error}`);
+    throw error;
   }
 };
 
@@ -120,8 +89,8 @@ const updateAuctionStatus = async (auctionId, updatedState) => {
   try {
     await client.update(params);
   } catch (error) {
-    console.error(error);
-    throw new Error(`Unable to update auction status: ${error.message}`);
+    console.error(`Error updating auction status: ${error}`);
+    throw error;
   }
 };
 
@@ -140,8 +109,8 @@ const updateAuctionPrice = async (auctionId, updatedState) => {
   try {
     await client.update(params);
   } catch (error) {
-    console.error(error);
-    throw new Error(`Unable to update auction price: ${error.message}`);
+    console.error(`Error updating auction price: ${error}`);
+    throw error;
   }
 };
 
