@@ -11,7 +11,7 @@ provider:
     AWS_ACCOUNT_ID:
       Ref: "AWS::AccountId"
     DYNAMODB_TABLE: AuctionStates-${self:provider.stage}
-    NOSTR_PUBLIC_KEY: "d5e19bcba9c3442bae90beea0dee2e5760177ee7ac5d4196118e657bbb302141"
+    NOSTR_PUBLIC_KEY: "be82246ca8d64881cc53407a773e33f9e220dc2153c52bb713a9ab1fe6a18d80"
 
   iam:
     role:

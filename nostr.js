@@ -1,5 +1,6 @@
 const { getEventHash } = require("nostr-tools");
-const { getNostrPool } = require("./nostr-relay");
+const { getPool } = require("./nostr-relay");
+const { promisify } = require("util");
 
 const NOSTR_KIND_INSCRIPTION = 802;
 
@@ -33,10 +34,9 @@ function getEvent({
 }
 
 async function broadcastEvent(signedEvent, privKey) {
-  // convert the callback to a promise
-  return new Promise((resolve, reject) => {
-    getNostrPool(privKey).publish(signedEvent, resolve, reject);
-  });
+  // Convert the callback to a promise
+  const publishAsync = promisify(getPool(privKey).publish);
+  return publishAsync(signedEvent);
 }
 
 async function signEvent({ utxo, priceInSats, signedPsbt, pubKey, privKey }) {
@@ -50,7 +50,7 @@ async function signEvent({ utxo, priceInSats, signedPsbt, pubKey, privKey }) {
     signedPsbt,
     pubKey,
   });
-  const signedEvent = await getNostrPool(privKey).sign(event, privKey);
+  const signedEvent = await getPool(privKey).sign(event);
 
   return signedEvent;
 }

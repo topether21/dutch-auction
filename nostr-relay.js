@@ -16,65 +16,61 @@ function cleanEvent(event) {
   };
 }
 
-class NostrRelay {
-  constructor(privKey) {
-    this.pool = new SimplePool();
-    this.subs = [];
-    this.relays = [...RELAYS];
-    this.events = [];
-    this.privKey = privKey;
-  }
+let poolInstance = null;
+let privKeyInstance = null;
 
-  publish(signedEvent, onSuccess, onError) {
-    const event = cleanEvent(signedEvent);
+function publish(pool, privKey, signedEvent, onSuccess, onError) {
+  const event = cleanEvent(signedEvent);
 
-    const pubs = this.pool.publish(this.relays, event);
-    const pubList = !Array.isArray(pubs) ? [pubs] : pubs;
+  const pubs = pool.publish(RELAYS, event);
+  const pubList = !Array.isArray(pubs) ? [pubs] : pubs;
 
-    let notified = false;
-    let totalPubsFailed = 0;
+  let notified = false;
+  let totalPubsFailed = 0;
 
-    // loop over all pubs and wait for all to be done
-    pubList.forEach((pub) => {
-      pub.on("ok", () => {
-        // Callback success only once
-        if (onSuccess && !notified) {
-          notified = true;
-          onSuccess();
-        }
-      });
-      pub.on("failed", (reason) => {
-        // eslint-disable-next-line no-console
-        console.error(`failed to publish ${reason}`);
-        // Callback error only if all pubs failed
-        totalPubsFailed += 1;
-        if (totalPubsFailed === pubs.length - 1) {
-          if (onError) onError(reason);
-        }
-      });
+  // loop over all pubs and wait for all to be done
+  pubList.forEach((pub) => {
+    pub.on("ok", () => {
+      // Callback success only once
+      if (onSuccess && !notified) {
+        notified = true;
+        onSuccess();
+      }
     });
-  }
-
-  async sign(event) {
-    const eventBase = { ...event, created_at: Math.floor(Date.now() / 1000) };
-    const newEvent = {
-      ...eventBase,
-      id: nostr.getEventHash(eventBase),
-    };
-    return nostr.signEvent(newEvent, this.privKey);
-  }
+    pub.on("failed", (reason) => {
+      // eslint-disable-next-line no-console
+      console.error(`failed to publish ${reason}`);
+      // Callback error only if all pubs failed
+      totalPubsFailed += 1;
+      if (totalPubsFailed === pubs.length - 1) {
+        if (onError) onError(reason);
+      }
+    });
+  });
 }
 
-let nostrPoolInstance = null;
+async function sign(privKey, event) {
+  const eventBase = { ...event, created_at: Math.floor(Date.now() / 1000) };
+  const newEvent = {
+    ...eventBase,
+    id: nostr.getEventHash(eventBase),
+  };
+  return nostr.signEvent(newEvent, privKey);
+}
 
-function getNostrPool(privKey) {
-  if (!nostrPoolInstance) {
-    if (!privKey) throw new Error("NostrRelay: privKey is required");
-    nostrPoolInstance = new NostrRelay(privKey);
+function getPool(privKey) {
+  if (!poolInstance) {
+    if (!privKey) throw new Error("getPool: privKey is required");
+    poolInstance = new SimplePool();
+    privKeyInstance = privKey;
   }
-  return nostrPoolInstance;
+  return {
+    publish: (signedEvent, onSuccess, onError) =>
+      publish(poolInstance, privKeyInstance, signedEvent, onSuccess, onError),
+    sign: (event) => sign(privKeyInstance, event),
+  };
 }
 
 module.exports = {
-  getNostrPool,
+  getPool,
 };

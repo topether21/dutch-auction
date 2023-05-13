@@ -207,6 +207,7 @@ async function updateAuctionStatus(event) {
   // Check if there are no more scheduled prices
   if (metadata.length === 0) {
     auction.status = "FINISHED";
+    console.log("No more scheduled prices. Auction finished.");
     await db.updateAuctionStatus(id, auction);
     return {
       ...auction,
@@ -238,6 +239,8 @@ async function updateAuctionStatus(event) {
     console.log("signAndBroadcastEvent done");
   } catch (error) {
     console.error("Error in signAndBroadcastEvent:", error);
+  } finally {
+    console.log("signAndBroadcastEvent complete");
   }
 
   await db.updateAuctionStatus(id, auction);
