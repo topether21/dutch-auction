@@ -51,6 +51,13 @@ provider:
           Resource: "*"
 
 functions:
+  publishEvent:
+    handler: handler.publishEvent
+    events:
+      - http:
+          path: publishEvent
+          method: post
+          cors: true
   createAuction:
     handler: handler.createAuction
     events:

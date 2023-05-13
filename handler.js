@@ -3,13 +3,11 @@ const {
   EventBridgeClient,
   PutEventsCommand,
 } = require("@aws-sdk/client-eventbridge");
-const Decimal = require("decimal.js");
 
 const { v4 } = require("uuid");
 const createError = require("http-errors");
 const db = require("./db");
-const { signAndBroadcastEvent } = require("./nostr");
-
+const nostr = require("./nostr");
 const stepFunctions = new SFNClient({});
 const eventBridge = new EventBridgeClient({});
 
@@ -75,6 +73,12 @@ const createAuction = async (event) => {
   try {
     await db.saveAuction(auction);
 
+    // TESTING
+    const currentDate = new Date();
+    const newTime = new Date(currentDate.getTime() + 5000); // Add 5000 milliseconds (5 seconds) to the current date
+
+    // TESTING
+
     // metadata the startAuction Lambda using EventBridge
     const command = new PutEventsCommand({
       Entries: [
@@ -83,7 +87,8 @@ const createAuction = async (event) => {
           DetailType: "AuctionScheduled",
           Detail: JSON.stringify({ id }),
           EventBusName: "default",
-          Time: new Date(startTime * 1000), // Convert Unix timestamp to JavaScript Date
+          Time: newTime, // TESTING
+          // Time: new Date(startTime * 1000), // Convert Unix timestamp to JavaScript Date
         },
       ],
     });
@@ -223,8 +228,8 @@ async function updateAuctionStatus(event) {
 
   try {
     const input = {
-      pubKey: process.env.NOSTR_PUBLIC_KEY,
-      privKey: process.env.NOSTR_PRIVATE_KEY,
+      pubkey: process.env.NOSTR_PUBLIC_KEY,
+      privkey: process.env.NOSTR_PRIVATE_KEY,
       utxo: currentEvent.utxo,
       priceInSats: currentEvent.price,
       signedPsbt: currentEvent.signedPsbt,
@@ -235,7 +240,7 @@ async function updateAuctionStatus(event) {
       JSON.stringify(input, null, 2)
     );
 
-    await signAndBroadcastEvent(input);
+    await nostr.signAndBroadcastEvent(input);
     console.log("signAndBroadcastEvent done");
   } catch (error) {
     console.error("Error in signAndBroadcastEvent:", error);
@@ -274,6 +279,30 @@ async function isAuctionBought(event) {
   return false;
 }
 
+const publishEvent = async (event) => {
+  const nostrEvent = JSON.parse(event.body);
+  try {
+    console.log("signAndPublish:", JSON.stringify(nostrEvent, null, 2));
+
+    try {
+      await nostr.publishEvent(nostrEvent);
+    } catch (error) {
+      console.error("Error in broadcastEvent:", error);
+    }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(nostrEvent),
+    };
+  } catch (error) {
+    console.error("Error in createAuction:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Internal Server Error" }),
+    };
+  }
+};
+
 module.exports = {
   createAuction,
   getAuctionStatus,
@@ -281,4 +310,5 @@ module.exports = {
   startAuction,
   finishAuction,
   updateAuctionStatus,
+  publishEvent,
 };
