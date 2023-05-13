@@ -82,21 +82,6 @@ functions:
   finishAuction:
     handler: handler.finishAuction
 
-  checkIfAuctionBought:
-    handler: handler.checkIfAuctionBought
-    events:
-      - http:
-          path: checkIfAuctionBought
-          method: post
-          cors: true
-  publishEventToNostr:
-    handler: handler.publishEventToNostr
-    events:
-      - http:
-          path: publishEventToNostr
-          method: post
-          cors: true
-
 stepFunctions:
   stateMachines:
     DutchAuctionStateMachine:
@@ -119,7 +104,7 @@ stepFunctions:
             Type: Choice
             Choices:
               - Variable: "$.currentPrice"
-                NumericLessThanEqualsPath: "$.minPrice"
+                NumericLessThanEqualsPath: "$.reservePrice"
                 Next: AuctionFinished
               - Variable: "$.auctionFinished"
                 BooleanEquals: true
@@ -127,14 +112,13 @@ stepFunctions:
             Default: WaitRoundDuration
           WaitRoundDuration:
             Type: Wait
-            SecondsPath: "$.roundDuration"
+            SecondsPath: "$.decreaseInterval"
             Next: UpdateAuctionState
           AuctionFinished:
             Type: Task
             Resource:
               Fn::GetAtt: [finishAuction, Arn]
             End: true
-
 resources:
   Resources:
     AuctionStatesTable:

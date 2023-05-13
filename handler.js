@@ -13,10 +13,22 @@ const stepFunctions = new SFNClient({});
 const eventBridge = new EventBridgeClient({});
 
 async function startStateMachine(auction) {
+  console.log("Input StateMachine:", JSON.stringify(auction, null, 2));
+  // Construct the auction's state machine parameters
   const params = {
     stateMachineArn: `arn:aws:states:${process.env.AWS_REGION}:${process.env.AWS_ACCOUNT_ID}:stateMachine:DutchAuctionStateMachine-${process.env.STAGE}`,
     name: auction.id, // unique name for the execution
-    input: JSON.stringify(auction),
+    input: JSON.stringify({
+      id: auction.id,
+      startTime: auction.startTime,
+      decreaseAmount: auction.decreaseAmount,
+      decreaseInterval: auction.decreaseInterval,
+      initialPrice: auction.initialPrice,
+      reservePrice: auction.reservePrice,
+      currentPrice: auction.initialPrice,
+      currentIntervalEnd: auction.decreaseInterval,
+      schedule: auction.schedule,
+    }),
   };
 
   console.log("startStateMachine:", JSON.stringify(params, null, 2));
@@ -35,21 +47,23 @@ async function startStateMachine(auction) {
 
 const createAuction = async (event) => {
   const {
-    startPrice,
-    minPrice,
+    startTime,
     decreaseAmount,
-    roundDuration,
-    startTimestamp,
+    decreaseInterval,
+    initialPrice,
+    reservePrice,
+    schedule,
   } = JSON.parse(event.body);
+
   const id = v4();
   const auction = {
     id,
-    startPrice,
-    minPrice,
+    startTime,
     decreaseAmount,
-    roundDuration,
-    startTimestamp,
-    currentPrice: startPrice,
+    decreaseInterval,
+    initialPrice,
+    reservePrice,
+    schedule,
     status: "PENDING",
   };
 
@@ -66,7 +80,7 @@ const createAuction = async (event) => {
           DetailType: "AuctionScheduled",
           Detail: JSON.stringify({ id }),
           EventBusName: "default",
-          Time: new Date(startTimestamp * 1000), // Convert Unix timestamp to JavaScript Date
+          Time: new Date(startTime * 1000), // Convert Unix timestamp to JavaScript Date
         },
       ],
     });
@@ -176,43 +190,39 @@ const getAuctions = async () => {
   }
 };
 
-const checkIfAuctionBought = async (event) => {
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: "Auction checked" }),
-  };
-};
-
-const publishEventToNostr = async (event) => {
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: "Event published to Nostr" }),
-  };
-};
-
 async function updateAuctionState(event) {
   console.log("event:", JSON.stringify(event, null, 2));
-  const { id, minPrice, decreaseAmount } = event;
+
+  const { id, schedule } = event;
+
   const auction = await db.getAuction(id);
 
   if (!auction) {
     throw new createError.NotFound(`Auction with ID "${id}" not found.`);
   }
 
-  let newPrice = new Decimal(auction.currentPrice).minus(decreaseAmount);
-  if (newPrice.lessThan(minPrice)) {
-    newPrice = new Decimal(minPrice);
+  // Check if there are no more scheduled prices
+  if (schedule.length === 0) {
+    auction.status = "FINISHED";
+    await db.updateAuctionState(id, auction);
+    return {
+      ...auction,
+      auctionFinished: true,
+    };
   }
 
-  const currentPrice = newPrice.toNumber();
-  auction.currentPrice = currentPrice;
-  await db.updateAuctionPrice(id, auction);
+  // Get the next scheduled price and update the auction
+  const nextScheduledPrice = schedule.shift();
 
-  const auctionFinished = newPrice.equals(minPrice);
+  auction.currentPrice = nextScheduledPrice.price;
+  auction.currentIntervalEnd = nextScheduledPrice.scheduledTime;
+  auction.schedule = schedule;
+
+  await db.updateAuctionState(id, auction);
+
   return {
     ...auction,
-    currentPrice,
-    auctionFinished,
+    auctionFinished: false,
   };
 }
 
@@ -235,6 +245,12 @@ async function finishAuction(event) {
   return auction;
 }
 
+async function isAuctionBought(event) {
+  return false;
+}
+
+async function publishEventToNostr(event) {}
+
 module.exports = {
   createAuction,
   getAuctionStatus,
@@ -242,6 +258,4 @@ module.exports = {
   startAuction,
   finishAuction,
   updateAuctionState,
-  checkIfAuctionBought,
-  publishEventToNostr,
 };
