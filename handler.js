@@ -7,6 +7,7 @@ const { v4 } = require("uuid");
 const createError = require("http-errors");
 const db = require("./db");
 const nostr = require("./nostr");
+const { headers } = require("./utils");
 
 const stepFunctions = new SFNClient({});
 const eventBridge = new EventBridgeClient({});
@@ -72,16 +73,18 @@ const createAuction = async (event) => {
         },
       ],
     });
-    const response = await eventBridge.send(command);
+    await eventBridge.send(command);
     return {
       statusCode: 200,
       body: JSON.stringify(auction),
+      headers,
     };
   } catch (error) {
     console.error("Error in createAuction:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: "Internal Server Error" }),
+      headers,
     };
   }
 };
@@ -112,7 +115,33 @@ const startAuction = async (event) => {
   }
 };
 
-const getAuctionStatus = async (event) => {
+const getAuctionsByAddress = async (event) => {
+  const address = event.pathParameters.address;
+  try {
+    const auction = await db.getAuctionsByNostrAddress(address);
+    if (!auction) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ message: "Auctions not found" }),
+        headers,
+      };
+    }
+    return {
+      statusCode: 200,
+      body: JSON.stringify(auction),
+      headers,
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Internal Server Error" }),
+      headers,
+    };
+  }
+};
+
+const getAuctionStatusById = async (event) => {
   const auctionId = event.pathParameters.auctionId;
   try {
     const auction = await db.getAuction(auctionId);
@@ -120,17 +149,20 @@ const getAuctionStatus = async (event) => {
       return {
         statusCode: 404,
         body: JSON.stringify({ message: "Auction not found" }),
+        headers,
       };
     }
     return {
       statusCode: 200,
       body: JSON.stringify(auction),
+      headers,
     };
   } catch (error) {
     console.error(error);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: "Internal Server Error" }),
+      headers,
     };
   }
 };
@@ -141,12 +173,14 @@ const getAuctions = async () => {
     return {
       statusCode: 200,
       body: JSON.stringify(auctions),
+      headers,
     };
   } catch (error) {
     console.error(error);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: "Internal Server Error" }),
+      headers,
     };
   }
 };
@@ -226,7 +260,8 @@ const publishEvent = async (event) => {
 
 module.exports = {
   createAuction,
-  getAuctionStatus,
+  getAuctionStatusById,
+  getAuctionsByAddress,
   getAuctions,
   startAuction,
   finishAuction,

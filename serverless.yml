@@ -24,7 +24,9 @@ provider:
             - "dynamodb:PutItem"
             - "dynamodb:UpdateItem"
             - "dynamodb:DeleteItem"
-          Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+          Resource:
+            - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+            - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}/index/*"
         - Effect: "Allow"
           Action:
             - "events:PutEvents"
@@ -53,23 +55,30 @@ provider:
 functions:
   publishEvent:
     handler: handler.publishEvent
-    events:
-      - http:
-          path: publishEvent
-          method: post
-          cors: true
+    # events:
+    #   - http:
+    #       path: publish-event
+    #       method: post
+    #       cors: true
   createAuction:
     handler: handler.createAuction
     events:
       - http:
-          path: createAuction
+          path: create-auction
           method: post
           cors: true
-  getAuctionStatus:
-    handler: handler.getAuctionStatus
+  getAuctionStatusById:
+    handler: handler.getAuctionStatusById
     events:
       - http:
-          path: auctions/{auctionId}
+          path: auctions/id/{auctionId}
+          method: get
+          cors: true
+  getAuctionsByAddress:
+    handler: handler.getAuctionsByAddress
+    events:
+      - http:
+          path: auctions/address/{address}
           method: get
           cors: true
   getAuctions:
@@ -90,7 +99,6 @@ functions:
               - "dutch-auction.start"
             detail-type:
               - "AuctionScheduled"
-
   updateAuctionStatus:
     handler: handler.updateAuctionStatus
   finishAuction:
@@ -142,17 +150,45 @@ resources:
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
+          - AttributeName: nostrAddress
+            AttributeType: S
         KeySchema:
           - AttributeName: id
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+        GlobalSecondaryIndexes:
+          - IndexName: nostrAddress-index
+            KeySchema:
+              - AttributeName: nostrAddress
+                KeyType: HASH
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+            Projection:
+              ProjectionType: ALL
 
 custom:
   serverlessSsmFetch:
     NOSTR_PRIVATE_KEY: NOSTR_PRIVATE_KEY~true
 
+  # CORS configuration
+  customHeaders:
+    - Content-Type
+    - X-Amz-Date
+    - Authorization
+    - X-Api-Key
+    - X-Amz-Security-Token
+    - X-Amz-User-Agent
+  cors:
+    origins:
+      - "*" # Update with specific allowed origins
+    headers:
+      - Content-Type
+    allowCredentials: false
+
 plugins:
   - serverless-step-functions
   - serverless-ssm-fetch
+  - serverless-offline
