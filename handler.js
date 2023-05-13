@@ -8,6 +8,7 @@ const Decimal = require("decimal.js");
 const { v4 } = require("uuid");
 const createError = require("http-errors");
 const db = require("./db");
+const { signAndBroadcastEvent } = require("./nostr");
 
 const stepFunctions = new SFNClient({});
 const eventBridge = new EventBridgeClient({});
@@ -214,10 +215,30 @@ async function updateAuctionStatus(event) {
   }
 
   // Get the next scheduled price and update the auction
-  const nextScheduledPrice = metadata.shift();
+  const currentEvent = metadata.shift();
 
-  auction.currentPrice = nextScheduledPrice.price;
+  auction.currentPrice = currentEvent.price;
   auction.metadata = metadata;
+
+  try {
+    const input = {
+      pubKey: process.env.NOSTR_PUBLIC_KEY,
+      privKey: process.env.NOSTR_PRIVATE_KEY,
+      utxo: currentEvent.utxo,
+      priceInSats: currentEvent.price,
+      signedPsbt: currentEvent.signedPsbt,
+    };
+
+    console.log(
+      "Prepare signAndBroadcastEvent:",
+      JSON.stringify(input, null, 2)
+    );
+
+    await signAndBroadcastEvent(input);
+    console.log("signAndBroadcastEvent done");
+  } catch (error) {
+    console.error("Error in signAndBroadcastEvent:", error);
+  }
 
   await db.updateAuctionStatus(id, auction);
 
@@ -249,8 +270,6 @@ async function finishAuction(event) {
 async function isAuctionBought(event) {
   return false;
 }
-
-async function publishEventToNostr(event) {}
 
 module.exports = {
   createAuction,
