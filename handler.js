@@ -27,7 +27,6 @@ async function startStateMachine(auction) {
       reservePrice: auction.reservePrice,
       currentPrice: auction.initialPrice,
       currentIntervalEnd: auction.decreaseInterval,
-      schedule: auction.schedule,
     }),
   };
 
@@ -132,7 +131,7 @@ const startAuction = async (event) => {
 
     auction.executionArn = executionArn;
 
-    await db.updateAuctionState(id, auction);
+    await db.updateAuctionStatus(id, auction);
 
     return {
       statusCode: 200,
@@ -190,7 +189,7 @@ const getAuctions = async () => {
   }
 };
 
-async function updateAuctionState(event) {
+async function updateAuctionStatus(event) {
   console.log("event:", JSON.stringify(event, null, 2));
 
   const { id, schedule } = event;
@@ -204,7 +203,7 @@ async function updateAuctionState(event) {
   // Check if there are no more scheduled prices
   if (schedule.length === 0) {
     auction.status = "FINISHED";
-    await db.updateAuctionState(id, auction);
+    await db.updateAuctionStatus(id, auction);
     return {
       ...auction,
       auctionFinished: true,
@@ -218,7 +217,7 @@ async function updateAuctionState(event) {
   auction.currentIntervalEnd = nextScheduledPrice.scheduledTime;
   auction.schedule = schedule;
 
-  await db.updateAuctionState(id, auction);
+  await db.updateAuctionStatus(id, auction);
 
   return {
     ...auction,
@@ -257,5 +256,5 @@ module.exports = {
   getAuctions,
   startAuction,
   finishAuction,
-  updateAuctionState,
+  updateAuctionStatus,
 };

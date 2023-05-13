@@ -77,8 +77,8 @@ functions:
             detail-type:
               - "AuctionScheduled"
 
-  updateAuctionState:
-    handler: handler.updateAuctionState
+  updateAuctionStatus:
+    handler: handler.updateAuctionStatus
   finishAuction:
     handler: handler.finishAuction
 
@@ -93,11 +93,11 @@ stepFunctions:
           InitializeAuction:
             Type: Pass
             ResultPath: "$"
-            Next: UpdateAuctionState
-          UpdateAuctionState:
+            Next: updateAuctionStatus
+          updateAuctionStatus:
             Type: Task
             Resource:
-              Fn::GetAtt: [updateAuctionState, Arn]
+              Fn::GetAtt: [updateAuctionStatus, Arn]
             ResultPath: "$"
             Next: IsAuctionFinished
           IsAuctionFinished:
@@ -113,7 +113,7 @@ stepFunctions:
           WaitRoundDuration:
             Type: Wait
             SecondsPath: "$.decreaseInterval"
-            Next: UpdateAuctionState
+            Next: updateAuctionStatus
           AuctionFinished:
             Type: Task
             Resource:

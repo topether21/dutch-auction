@@ -17,6 +17,7 @@
     "serverless-step-functions": "^3.13.1"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.332.0",
     "@aws-sdk/client-eventbridge": "^3.329.0",
     "@aws-sdk/client-sfn": "^3.329.0",
     "decimal.js": "^10.4.3",
