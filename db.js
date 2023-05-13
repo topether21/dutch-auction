@@ -1,29 +1,48 @@
-const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb"),
-  { DynamoDB } = require("@aws-sdk/client-dynamodb");
-const dynamoDb = DynamoDBDocument.from(new DynamoDB());
+const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDB } = require("@aws-sdk/client-dynamodb");
+
+const client = DynamoDBDocument.from(new DynamoDB(), {
+  marshallOptions: { removeUndefinedValues: true, convertEmptyValues: true },
+});
+
+function removeUndefinedValues(obj) {
+  for (let k in obj) {
+    if (obj[k] === undefined) {
+      delete obj[k];
+    } else if (typeof obj[k] === "object" && obj[k] !== null) {
+      removeUndefinedValues(obj[k]);
+    }
+  }
+}
 
 const saveAuction = async (auction) => {
+  removeUndefinedValues(auction);
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Item: auction,
   };
 
-  await dynamoDb.put(params);
+  try {
+    await client.put(params);
+  } catch (error) {
+    console.error(`Error saving auction: ${error}`);
+    throw error;
+  }
 };
 
-async function listAuctions() {
+const listAuctions = async () => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
   };
 
   try {
-    const result = await dynamoDb.scan(params);
-    return result.Items;
+    const { Items } = await client.scan(params);
+    return Items;
   } catch (error) {
-    console.error(error);
-    throw new Error("Unable to list auctions");
+    console.error(`Error listing auctions: ${error}`);
+    throw error;
   }
-}
+};
 
 const getAuction = async (auctionId) => {
   const params = {
@@ -34,11 +53,11 @@ const getAuction = async (auctionId) => {
   };
 
   try {
-    const result = await dynamoDb.get(params);
-    return result.Item;
+    const { Item } = await client.get(params);
+    return Item;
   } catch (error) {
-    console.error(error);
-    throw new Error("Unable to get auction");
+    console.error(`Error getting auction: ${error}`);
+    throw error;
   }
 };
 
@@ -56,21 +75,21 @@ const finishAuction = async (auctionId) => {
   };
 
   try {
-    await dynamoDb.update(params);
+    await client.update(params);
     return { status: "FINISHED" };
   } catch (error) {
-    console.error(error);
+    console.error(`Error finishing auction: ${error}`);
     throw error;
   }
 };
 
-const updateAuctionState = async (auctionId, updatedState) => {
+const updateAuctionStatus = async (auctionId, updatedState) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {
       id: auctionId,
     },
-    UpdateExpression: "set currentPrice = :currentPrice, #status = :status",
+    UpdateExpression: "SET currentPrice = :currentPrice, #status = :status",
     ExpressionAttributeValues: {
       ":currentPrice": updatedState.currentPrice,
       ":status": updatedState.status,
@@ -80,7 +99,12 @@ const updateAuctionState = async (auctionId, updatedState) => {
     },
   };
 
-  await dynamoDb.update(params);
+  try {
+    await client.update(params);
+  } catch (error) {
+    console.error(`Error updating auction status: ${error}`);
+    throw error;
+  }
 };
 
 const updateAuctionPrice = async (auctionId, updatedState) => {
@@ -89,19 +113,24 @@ const updateAuctionPrice = async (auctionId, updatedState) => {
     Key: {
       id: auctionId,
     },
-    UpdateExpression: "set currentPrice = :currentPrice",
+    UpdateExpression: "SET currentPrice = :currentPrice",
     ExpressionAttributeValues: {
       ":currentPrice": updatedState.currentPrice,
     },
   };
 
-  await dynamoDb.update(params);
+  try {
+    await client.update(params);
+  } catch (error) {
+    console.error(`Error updating auction price: ${error}`);
+    throw error;
+  }
 };
 
 module.exports = {
   saveAuction,
   getAuction,
-  updateAuctionState,
+  updateAuctionStatus,
   updateAuctionPrice,
   listAuctions,
   finishAuction,

@@ -11,6 +11,7 @@ provider:
     AWS_ACCOUNT_ID:
       Ref: "AWS::AccountId"
     DYNAMODB_TABLE: AuctionStates-${self:provider.stage}
+    NOSTR_PUBLIC_KEY: "be82246ca8d64881cc53407a773e33f9e220dc2153c52bb713a9ab1fe6a18d80"
 
   iam:
     role:
@@ -42,8 +43,21 @@ provider:
             - "logs:CreateLogStream"
             - "logs:PutLogEvents"
           Resource: "*"
+        - Effect: Allow
+          Action:
+            - ssm:Describe*
+            - ssm:Get*
+            - ssm:List*
+          Resource: "*"
 
 functions:
+  publishEvent:
+    handler: handler.publishEvent
+    events:
+      - http:
+          path: publishEvent
+          method: post
+          cors: true
   createAuction:
     handler: handler.createAuction
     events:
@@ -77,25 +91,10 @@ functions:
             detail-type:
               - "AuctionScheduled"
 
-  updateAuctionState:
-    handler: handler.updateAuctionState
+  updateAuctionStatus:
+    handler: handler.updateAuctionStatus
   finishAuction:
     handler: handler.finishAuction
-
-  checkIfAuctionBought:
-    handler: handler.checkIfAuctionBought
-    events:
-      - http:
-          path: checkIfAuctionBought
-          method: post
-          cors: true
-  publishEventToNostr:
-    handler: handler.publishEventToNostr
-    events:
-      - http:
-          path: publishEventToNostr
-          method: post
-          cors: true
 
 stepFunctions:
   stateMachines:
@@ -108,18 +107,18 @@ stepFunctions:
           InitializeAuction:
             Type: Pass
             ResultPath: "$"
-            Next: UpdateAuctionState
-          UpdateAuctionState:
+            Next: updateAuctionStatus
+          updateAuctionStatus:
             Type: Task
             Resource:
-              Fn::GetAtt: [updateAuctionState, Arn]
+              Fn::GetAtt: [updateAuctionStatus, Arn]
             ResultPath: "$"
             Next: IsAuctionFinished
           IsAuctionFinished:
             Type: Choice
             Choices:
               - Variable: "$.currentPrice"
-                NumericLessThanEqualsPath: "$.minPrice"
+                NumericLessThanEqualsPath: "$.reservePrice"
                 Next: AuctionFinished
               - Variable: "$.auctionFinished"
                 BooleanEquals: true
@@ -127,14 +126,13 @@ stepFunctions:
             Default: WaitRoundDuration
           WaitRoundDuration:
             Type: Wait
-            SecondsPath: "$.roundDuration"
-            Next: UpdateAuctionState
+            SecondsPath: "$.decreaseInterval"
+            Next: updateAuctionStatus
           AuctionFinished:
             Type: Task
             Resource:
               Fn::GetAtt: [finishAuction, Arn]
             End: true
-
 resources:
   Resources:
     AuctionStatesTable:
@@ -151,5 +149,10 @@ resources:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
 
+custom:
+  serverlessSsmFetch:
+    NOSTR_PRIVATE_KEY: NOSTR_PRIVATE_KEY~true
+
 plugins:
   - serverless-step-functions
+  - serverless-ssm-fetch
