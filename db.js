@@ -1,9 +1,22 @@
 const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
 const { DynamoDB } = require("@aws-sdk/client-dynamodb");
 
-const client = DynamoDBDocument.from(new DynamoDB());
+const client = DynamoDBDocument.from(new DynamoDB(), {
+  marshallOptions: { removeUndefinedValues: true, convertEmptyValues: true },
+});
+
+function removeUndefinedValues(obj) {
+  for (let k in obj) {
+    if (obj[k] === undefined) {
+      delete obj[k];
+    } else if (typeof obj[k] === "object" && obj[k] !== null) {
+      removeUndefinedValues(obj[k]);
+    }
+  }
+}
 
 const saveAuction = async (auction) => {
+  removeUndefinedValues(auction);
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Item: auction,

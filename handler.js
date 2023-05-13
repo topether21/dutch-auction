@@ -26,7 +26,7 @@ async function startStateMachine(auction) {
       initialPrice: auction.initialPrice,
       reservePrice: auction.reservePrice,
       currentPrice: auction.initialPrice,
-      currentIntervalEnd: auction.decreaseInterval,
+      metadata: auction.metadata,
     }),
   };
 
@@ -51,7 +51,8 @@ const createAuction = async (event) => {
     decreaseInterval,
     initialPrice,
     reservePrice,
-    schedule,
+    metadata,
+    nostrAddress,
   } = JSON.parse(event.body);
 
   const id = v4();
@@ -62,8 +63,10 @@ const createAuction = async (event) => {
     decreaseInterval,
     initialPrice,
     reservePrice,
-    schedule,
+    metadata,
     status: "PENDING",
+    currentPrice: initialPrice,
+    nostrAddress,
   };
 
   console.log("Received event body:", JSON.parse(event.body));
@@ -71,7 +74,7 @@ const createAuction = async (event) => {
   try {
     await db.saveAuction(auction);
 
-    // Schedule the startAuction Lambda using EventBridge
+    // metadata the startAuction Lambda using EventBridge
     const command = new PutEventsCommand({
       Entries: [
         {
@@ -192,7 +195,7 @@ const getAuctions = async () => {
 async function updateAuctionStatus(event) {
   console.log("event:", JSON.stringify(event, null, 2));
 
-  const { id, schedule } = event;
+  const { id, metadata } = event;
 
   const auction = await db.getAuction(id);
 
@@ -201,7 +204,7 @@ async function updateAuctionStatus(event) {
   }
 
   // Check if there are no more scheduled prices
-  if (schedule.length === 0) {
+  if (metadata.length === 0) {
     auction.status = "FINISHED";
     await db.updateAuctionStatus(id, auction);
     return {
@@ -211,11 +214,10 @@ async function updateAuctionStatus(event) {
   }
 
   // Get the next scheduled price and update the auction
-  const nextScheduledPrice = schedule.shift();
+  const nextScheduledPrice = metadata.shift();
 
   auction.currentPrice = nextScheduledPrice.price;
-  auction.currentIntervalEnd = nextScheduledPrice.scheduledTime;
-  auction.schedule = schedule;
+  auction.metadata = metadata;
 
   await db.updateAuctionStatus(id, auction);
 
