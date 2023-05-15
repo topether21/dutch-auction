@@ -15,8 +15,34 @@ function removeUndefinedValues(obj) {
   }
 }
 
+const getAuctionsByNostrAddress = async (nostrAddress) => {
+  console.log(`nostrAddress: ${nostrAddress}, type: ${typeof nostrAddress}`);
+  const params = {
+    TableName: process.env.DYNAMODB_TABLE,
+    IndexName: "nostrAddress-index",
+    KeyConditionExpression: "#na = :na",
+    ExpressionAttributeNames: {
+      "#na": "nostrAddress",
+    },
+    ExpressionAttributeValues: {
+      ":na": nostrAddress,
+    },
+  };
+
+  try {
+    const { Items } = await client.query(params);
+    return Items;
+  } catch (error) {
+    console.error(`Error getting auctions by nostrAddress: ${error}`);
+    throw error;
+  }
+};
+
 const saveAuction = async (auction) => {
   removeUndefinedValues(auction);
+  if (typeof auction.nostrAddress !== "string") {
+    throw new Error("nostrAddress must be a string");
+  }
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Item: auction,
@@ -131,6 +157,7 @@ module.exports = {
   saveAuction,
   getAuction,
   updateAuctionStatus,
+  getAuctionsByNostrAddress,
   updateAuctionPrice,
   listAuctions,
   finishAuction,

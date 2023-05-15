@@ -5,16 +5,16 @@ const NOSTR_KIND_INSCRIPTION = 802;
 const NOSTR_RELAY_URL = "wss://nostr.openordex.org";
 const RELAYS = [NOSTR_RELAY_URL];
 
+// Function to sign Nostr events
 async function sign(event, privkey) {
   const eventBase = { ...event, created_at: Math.floor(Date.now() / 1000) };
-  const newEvent = {
-    ...eventBase,
-    id: getEventHash(eventBase),
-  };
+  const newEvent = { ...eventBase, id: getEventHash(eventBase) };
   const sig = signEvent(newEvent, privkey);
+
   return { ...newEvent, sig };
 }
 
+// Function to construct the sell event
 function getSellEvent({
   inscriptionId,
   inscriptionUtxo,
@@ -38,10 +38,13 @@ function getSellEvent({
     ],
     content: signedPsbt,
   };
-  event.id = getEventHash(event);
-  return event;
+  return {
+    ...event,
+    id: getEventHash(event),
+  };
 }
 
+// Function to sign Nostr event
 async function signNostrEvent({
   utxo,
   priceInSats,
@@ -51,7 +54,6 @@ async function signNostrEvent({
 }) {
   const { inscriptionId } = utxo;
   const inscriptionUtxo = `${utxo.txid}:${utxo.vout}`;
-
   const event = getSellEvent({
     inscriptionId,
     inscriptionUtxo,
@@ -60,9 +62,11 @@ async function signNostrEvent({
     pubkey,
   });
   const signedEvent = await sign(event, privkey);
+
   return signedEvent;
 }
 
+// Function to sign and broadcast Nostr event
 async function signAndBroadcastEvent({
   utxo,
   priceInSats,
@@ -77,10 +81,13 @@ async function signAndBroadcastEvent({
     pubkey,
     privkey,
   });
+
   console.log("signedEvent:", JSON.stringify(signedEvent, null, 2));
+
   return publishEvent(signedEvent);
 }
 
+// Function to publish the event to the Nostr network
 const publishEvent = async (event) => {
   console.info(`Processing ${event.id}`);
 
@@ -91,22 +98,26 @@ const publishEvent = async (event) => {
           const relay = relayInit(url);
           const timeout = 10000;
 
-          function timeoutAndClose() {
+          const timeoutAndClose = () => {
             console.error(`Timeout error: event ${event.id} relay ${url}`);
             relay.close();
-            reject();
-          }
+            reject(new Error(`Timeout error: event ${event.id} relay ${url}`));
+          };
+
           let timeoutCheck = setTimeout(timeoutAndClose, timeout);
 
           relay.on("connect", () => {
             console.info(`Sending ${event.id} to ${url}`, event);
+
             const pub = relay.publish(event);
+
             pub.on("ok", () => {
               console.info(`Event ${event.id} published to ${url}`);
               relay.close();
               clearTimeout(timeoutCheck);
               resolve();
             });
+
             pub.on("failed", (reason) => {
               console.warn(
                 `Failed to publish ${event.id} to ${url}: ${reason}`
@@ -126,9 +137,8 @@ const publishEvent = async (event) => {
 
           return relay.connect();
         } catch (error) {
-          console.error("Failed to publish");
-          console.error(error);
-          reject(e);
+          console.error("Failed to publish", error);
+          reject(error);
         }
       })
   );
