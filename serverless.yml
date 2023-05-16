@@ -53,6 +53,13 @@ provider:
           Resource: "*"
 
 functions:
+  isSpent:
+    handler: handler.isSpent
+    events:
+      - http:
+          path: tx/{output}/is-spent
+          method: get
+          cors: true
   publishEvent:
     handler: handler.publishEvent
     # events:

@@ -8,6 +8,7 @@ const createError = require("http-errors");
 const db = require("./db");
 const nostr = require("./nostr");
 const { headers } = require("./utils");
+const inscriptions = require("./inscriptions");
 
 const stepFunctions = new SFNClient({});
 const eventBridge = new EventBridgeClient({});
@@ -46,6 +47,7 @@ const createAuction = async (event) => {
     reservePrice,
     metadata,
     nostrAddress,
+    utxo,
   } = JSON.parse(event.body);
   const id = v4();
   const auction = {
@@ -59,8 +61,22 @@ const createAuction = async (event) => {
     status: "PENDING",
     currentPrice: initialPrice,
     nostrAddress,
+    utxo: {
+      output: utxo.output,
+      txid: utxo.txid,
+    },
   };
   try {
+    const status = await inscriptions.isSpent(auction.utxo?.output);
+    if (status.spent) {
+      auction.status = "SPENT";
+      await db.saveAuction(auction);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(auction),
+      };
+    }
     await db.saveAuction(auction);
     const command = new PutEventsCommand({
       Entries: [
@@ -98,6 +114,17 @@ const startAuction = async (event) => {
         `Auction with ID "${id}" is not pending. Current status: ${auction.status}`
       );
     }
+
+    const status = await inscriptions.isSpent(auction.utxo?.output);
+    if (status.spent) {
+      auction.status = "SPENT";
+      await db.updateAuctionStatus(id, auction);
+      return {
+        statusCode: 200,
+        body: JSON.stringify(auction),
+      };
+    }
+
     auction.status = "RUNNING";
     const executionArn = await startStateMachine(auction);
     auction.executionArn = executionArn;
@@ -191,6 +218,15 @@ async function updateAuctionStatus(event) {
   if (!auction) {
     throw new createError.NotFound(`Auction with ID "${id}" not found.`);
   }
+  const status = await inscriptions.isSpent(auction.utxo.output);
+  if (status.spent) {
+    auction.status = "SPENT";
+    await db.updateAuctionStatus(id, auction);
+    return {
+      ...auction,
+      auctionFinished: true,
+    };
+  }
   if (metadata.length === 0) {
     auction.status = "FINISHED";
     await db.updateAuctionStatus(id, auction);
@@ -229,16 +265,12 @@ async function finishAuction(event) {
   if (!auction) {
     throw new createError.NotFound(`Auction with ID "${id}" not found.`);
   }
-  if (auction.status !== "FINISHED") {
+  if (auction.status !== "FINISHED" && auction.status !== "SPENT") {
     auction.status = "FINISHED";
     await db.finishAuction(id);
   }
   console.log(`Auction ${id} status set to FINISHED`);
   return auction;
-}
-
-async function isAuctionBought(event) {
-  return false;
 }
 
 const publishEvent = async (event) => {
@@ -258,7 +290,27 @@ const publishEvent = async (event) => {
   }
 };
 
+const isSpent = async (event) => {
+  const output = event.pathParameters.output;
+  try {
+    const result = await inscriptions.isSpent(output);
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ output, ...result }),
+    };
+  } catch (error) {
+    console.error("Error in createAuction:", error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ message: "Internal Server Error" }),
+    };
+  }
+};
+
 module.exports = {
+  isSpent,
   createAuction,
   getAuctionStatusById,
   getAuctionsByAddress,
