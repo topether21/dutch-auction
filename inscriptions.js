@@ -27,21 +27,25 @@ const config = { MEMPOOL_API_URL };
 // }
 
 const isSpent = async (output) => {
+  //   return {
+  //     spent: false,
+  //   };
   const [txid, vout] = output.split(":");
   const { data } = await axios.get(
     `${config.MEMPOOL_API_URL}/api/tx/${txid}/outspend/${vout}`
   );
-  if (data.spent) {
-    const { data: last_lock_height } = await axios.get(
-      `${config.MEMPOOL_API_URL}/api/blocks/tip/height`
-    );
-    const confirmations = last_lock_height - data.status.block_height;
-    return {
-      ...data,
-      confirmations,
-    };
-  }
   return data;
+  // if (data.spent) {
+  //   const { data: last_lock_height } = await axios.get(
+  //     `${config.MEMPOOL_API_URL}/api/blocks/tip/height`
+  //   );
+  //   const confirmations = last_lock_height - data.status.block_height;
+  //   return {
+  //     ...data,
+  //     confirmations,
+  //   };
+  // }
+  // return data;
 };
 
 module.exports = {

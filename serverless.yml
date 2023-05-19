@@ -60,6 +60,13 @@ functions:
           path: tx/{output}/is-spent
           method: get
           cors: true
+  getAuctionsByInscriptionId:
+    handler: handler.getAuctionsByInscriptionId
+    events:
+      - http:
+          path: /inscription/{inscriptionId}
+          method: get
+          cors: true
   publishEvent:
     handler: handler.publishEvent
     # events:
@@ -141,7 +148,7 @@ stepFunctions:
             Default: WaitRoundDuration
           WaitRoundDuration:
             Type: Wait
-            SecondsPath: "$.decreaseInterval"
+            SecondsPath: "$.timeBetweenEachDecrease"
             Next: updateAuctionStatus
           AuctionFinished:
             Type: Task
@@ -159,6 +166,8 @@ resources:
             AttributeType: S
           - AttributeName: nostrAddress
             AttributeType: S
+          - AttributeName: inscriptionId
+            AttributeType: S
         KeySchema:
           - AttributeName: id
             KeyType: HASH
@@ -175,7 +184,15 @@ resources:
               WriteCapacityUnits: 1
             Projection:
               ProjectionType: ALL
-
+          - IndexName: inscriptionId-index
+            KeySchema:
+              - AttributeName: inscriptionId
+                KeyType: HASH
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+            Projection:
+              ProjectionType: ALL
 custom:
   serverlessSsmFetch:
     NOSTR_PRIVATE_KEY: NOSTR_PRIVATE_KEY~true
@@ -199,3 +216,4 @@ plugins:
   - serverless-step-functions
   - serverless-ssm-fetch
   - serverless-offline
+  - serverless-openapi-documenter

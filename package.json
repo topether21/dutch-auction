@@ -16,6 +16,7 @@
     "serverless": "^3.30.1",
     "serverless-esbuild": "^1.44.0",
     "serverless-offline": "^12.0.4",
+    "serverless-openapi-documenter": "^0.0.53",
     "serverless-ssm-fetch": "^2.0.0",
     "serverless-step-functions": "^3.13.1"
   },

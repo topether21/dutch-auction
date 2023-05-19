@@ -21,10 +21,10 @@ async function startStateMachine(auction) {
       id: auction.id,
       startTime: auction.startTime,
       decreaseAmount: auction.decreaseAmount,
-      decreaseInterval: auction.decreaseInterval,
-      initialPrice: auction.initialPrice,
+      timeBetweenEachDecrease: auction.timeBetweenEachDecrease,
+      startPrice: auction.startPrice,
       reservePrice: auction.reservePrice,
-      currentPrice: auction.initialPrice,
+      currentPrice: auction.startPrice,
       metadata: auction.metadata,
     }),
   };
@@ -42,42 +42,53 @@ const createAuction = async (event) => {
   const {
     startTime,
     decreaseAmount,
-    decreaseInterval,
-    initialPrice,
+    timeBetweenEachDecrease,
+    startPrice,
     reservePrice,
     metadata,
     nostrAddress,
-    utxo,
+    inscriptionId,
+    output,
   } = JSON.parse(event.body);
   const id = v4();
   const auction = {
     id,
     startTime,
     decreaseAmount,
-    decreaseInterval,
-    initialPrice,
+    timeBetweenEachDecrease,
+    startPrice,
     reservePrice,
-    metadata,
+    metadata: metadata.map((m) => ({ ...m, id: v4() })),
+    currentPrice: startPrice,
     status: "PENDING",
-    currentPrice: initialPrice,
     nostrAddress,
-    utxo: {
-      output: utxo.output,
-      txid: utxo.txid,
-    },
+    inscriptionId,
+    output,
   };
   try {
-    const status = await inscriptions.isSpent(auction.utxo?.output);
-    if (status.spent) {
-      auction.status = "SPENT";
-      await db.saveAuction(auction);
+    const inscriptionStatus = await inscriptions.isSpent(auction.output);
+    if (inscriptionStatus.spent) {
       return {
-        statusCode: 200,
+        statusCode: 404,
+        body: JSON.stringify({
+          message: "Inscription is spent.",
+        }),
         headers,
-        body: JSON.stringify(auction),
       };
     }
-    await db.saveAuction(auction);
+    const auctions = await db.getAuctionsByInscriptionId(inscriptionId);
+    if (auctions.length > 0 && auctions.some((a) => a.status === "RUNNING")) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({
+          message: "Auction running for this inscription.",
+        }),
+        headers,
+      };
+    }
+    const now = Math.floor(new Date().getTime() / 1000);
+    const validStartTime = startTime < now ? now + 5 : startTime; // Always start the auction
+    await db.saveAuction({ ...auction, startTime: validStartTime });
     const command = new PutEventsCommand({
       Entries: [
         {
@@ -85,7 +96,7 @@ const createAuction = async (event) => {
           DetailType: "AuctionScheduled",
           Detail: JSON.stringify({ id }),
           EventBusName: "default",
-          Time: new Date(startTime * 1000),
+          Time: new Date(validStartTime),
         },
       ],
     });
@@ -115,23 +126,23 @@ const startAuction = async (event) => {
       );
     }
 
-    const status = await inscriptions.isSpent(auction.utxo?.output);
-    if (status.spent) {
-      auction.status = "SPENT";
-      await db.updateAuctionStatus(id, auction);
+    const inscriptionStatus = await inscriptions.isSpent(auction.output);
+    if (inscriptionStatus.spent) {
+      const status = "SPENT";
+      await db.updateAuctionStatus(id, status);
       return {
         statusCode: 200,
-        body: JSON.stringify(auction),
+        body: JSON.stringify({ ...auction, status }),
       };
     }
 
-    auction.status = "RUNNING";
-    const executionArn = await startStateMachine(auction);
+    const executionArn = await startStateMachine({ ...auction });
     auction.executionArn = executionArn;
-    await db.updateAuctionStatus(id, auction);
+    const status = "RUNNING";
+    await db.updateAuctionStatus(id, status);
     return {
       statusCode: 200,
-      body: JSON.stringify(auction),
+      body: JSON.stringify({ ...auction, status }),
     };
   } catch (error) {
     console.error("Error in startAuction:", error);
@@ -156,6 +167,32 @@ const getAuctionsByAddress = async (event) => {
     return {
       statusCode: 200,
       body: JSON.stringify(auction),
+      headers,
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Internal Server Error" }),
+      headers,
+    };
+  }
+};
+
+const getAuctionsByInscriptionId = async (event) => {
+  const inscriptionId = event.pathParameters.inscriptionId;
+  try {
+    const auctions = await db.getAuctionsByInscriptionId(inscriptionId);
+    if (!auctions) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ message: "Auctions not found" }),
+        headers,
+      };
+    }
+    return {
+      statusCode: 200,
+      body: JSON.stringify(auctions),
       headers,
     };
   } catch (error) {
@@ -213,48 +250,61 @@ const getAuctions = async () => {
 };
 
 async function updateAuctionStatus(event) {
-  const { id, metadata } = event;
+  const { id, metadata: stateMachineMetadata } = event;
   const auction = await db.getAuction(id);
+  const auctionMetadata = auction.metadata;
+  const stateMachineAuction = { ...auction, metadata: stateMachineMetadata };
   if (!auction) {
     throw new createError.NotFound(`Auction with ID "${id}" not found.`);
   }
-  const status = await inscriptions.isSpent(auction.utxo.output);
-  if (status.spent) {
-    auction.status = "SPENT";
-    await db.updateAuctionStatus(id, auction);
+  const inscriptionStatus = await inscriptions.isSpent(auction.output);
+  if (inscriptionStatus.spent) {
+    const status = "SPENT";
+    await db.updateAuctionStatus(id, status);
     return {
-      ...auction,
+      ...stateMachineAuction,
       auctionFinished: true,
     };
   }
-  if (metadata.length === 0) {
-    auction.status = "FINISHED";
-    await db.updateAuctionStatus(id, auction);
+  if (stateMachineMetadata.length === 0) {
+    const status = "FINISHED";
+    await db.updateAuctionStatus(id, status);
     return {
-      ...auction,
+      ...stateMachineAuction,
       auctionFinished: true,
     };
   }
-  const currentEvent = metadata.shift();
-  auction.currentPrice = currentEvent.price;
-  auction.metadata = metadata;
+  const scheduledEvent = stateMachineAuction.metadata.shift();
+  const currentPrice = scheduledEvent.price;
   try {
     const input = {
       pubkey: process.env.NOSTR_PUBLIC_KEY,
       privkey: process.env.NOSTR_PRIVATE_KEY,
-      utxo: currentEvent.utxo,
-      priceInSats: currentEvent.price,
-      signedPsbt: currentEvent.signedPsbt,
+      output: auction.output,
+      inscriptionId: auction.inscriptionId,
+      priceInSats: currentPrice,
+      signedPsbt: scheduledEvent.signedPsbt,
     };
-    await nostr.signAndBroadcastEvent(input);
+    const broadcastedEvent = await nostr.signAndBroadcastEvent(input);
+    const currentMetadataIndex = auctionMetadata.findIndex(
+      (m) => m.id === scheduledEvent.id
+    );
+    auctionMetadata[currentMetadataIndex] = {
+      ...scheduledEvent,
+      nostrEventId: broadcastedEvent.id,
+    };
+    await db.updateAuctionMetadata(id, auctionMetadata);
+    console.log(
+      "signAndBroadcastEvent complete",
+      JSON.stringify(events, null, 2)
+    );
   } catch (error) {
     console.error("Error in signAndBroadcastEvent:", error);
-  } finally {
-    console.log("signAndBroadcastEvent complete");
   }
-  await db.updateAuctionStatus(id, auction);
+  await db.updateAuctionPrice(id, currentPrice);
   return {
-    ...auction,
+    ...stateMachineAuction,
+    currentPrice,
     auctionFinished: false,
   };
 }
@@ -276,10 +326,10 @@ async function finishAuction(event) {
 const publishEvent = async (event) => {
   const nostrEvent = JSON.parse(event.body);
   try {
-    await nostr.publishEvent(nostrEvent);
+    const result = await nostr.publishEvent(nostrEvent);
     return {
       statusCode: 200,
-      body: JSON.stringify(nostrEvent),
+      body: JSON.stringify(result),
     };
   } catch (error) {
     console.error("Error in createAuction:", error);
@@ -314,6 +364,7 @@ module.exports = {
   createAuction,
   getAuctionStatusById,
   getAuctionsByAddress,
+  getAuctionsByInscriptionId,
   getAuctions,
   startAuction,
   finishAuction,

@@ -38,6 +38,29 @@ const getAuctionsByNostrAddress = async (nostrAddress) => {
   }
 };
 
+const getAuctionsByInscriptionId = async (inscriptionId) => {
+  console.log(`inscriptionId: ${inscriptionId}, type: ${typeof nostrAddress}`);
+  const params = {
+    TableName: process.env.DYNAMODB_TABLE,
+    IndexName: "inscriptionId-index",
+    KeyConditionExpression: "#na = :na",
+    ExpressionAttributeNames: {
+      "#na": "inscriptionId",
+    },
+    ExpressionAttributeValues: {
+      ":na": inscriptionId,
+    },
+  };
+
+  try {
+    const { Items } = await client.query(params);
+    return Items;
+  } catch (error) {
+    console.error(`Error getting auctions by nostrAddress: ${error}`);
+    throw error;
+  }
+};
+
 const saveAuction = async (auction) => {
   removeUndefinedValues(auction);
   if (typeof auction.nostrAddress !== "string") {
@@ -109,16 +132,15 @@ const finishAuction = async (auctionId) => {
   }
 };
 
-const updateAuctionStatus = async (auctionId, updatedState) => {
+const updateAuctionStatus = async (auctionId, status) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {
       id: auctionId,
     },
-    UpdateExpression: "SET currentPrice = :currentPrice, #status = :status",
+    UpdateExpression: "SET #status = :status",
     ExpressionAttributeValues: {
-      ":currentPrice": updatedState.currentPrice,
-      ":status": updatedState.status,
+      ":status": status,
     },
     ExpressionAttributeNames: {
       "#status": "status",
@@ -133,7 +155,27 @@ const updateAuctionStatus = async (auctionId, updatedState) => {
   }
 };
 
-const updateAuctionPrice = async (auctionId, updatedState) => {
+const updateAuctionMetadata = async (auctionId, metadata) => {
+  const params = {
+    TableName: process.env.DYNAMODB_TABLE,
+    Key: {
+      id: auctionId,
+    },
+    UpdateExpression: "SET metadata = :metadata",
+    ExpressionAttributeValues: {
+      ":metadata": metadata,
+    },
+  };
+
+  try {
+    await client.update(params);
+  } catch (error) {
+    console.error(`Error updating auction status: ${error}`);
+    throw error;
+  }
+};
+
+const updateAuctionPrice = async (auctionId, price) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {
@@ -141,7 +183,7 @@ const updateAuctionPrice = async (auctionId, updatedState) => {
     },
     UpdateExpression: "SET currentPrice = :currentPrice",
     ExpressionAttributeValues: {
-      ":currentPrice": updatedState.currentPrice,
+      ":currentPrice": price,
     },
   };
 
@@ -157,8 +199,10 @@ module.exports = {
   saveAuction,
   getAuction,
   updateAuctionStatus,
-  getAuctionsByNostrAddress,
+  updateAuctionMetadata,
   updateAuctionPrice,
+  getAuctionsByNostrAddress,
+  getAuctionsByInscriptionId,
   listAuctions,
   finishAuction,
 };

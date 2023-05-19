@@ -17,7 +17,7 @@ async function sign(event, privkey) {
 // Function to construct the sell event
 function getSellEvent({
   inscriptionId,
-  inscriptionUtxo,
+  output,
   networkName = "mainnet",
   priceInSats,
   signedPsbt,
@@ -32,7 +32,7 @@ function getSellEvent({
       ["n", networkName], // Network name (e.g. "mainnet", "signet")
       ["t", type], // Type of order (e.g. "sell", "buy")
       ["i", inscriptionId], // Inscription ID
-      ["u", inscriptionUtxo], // Inscription UTXO
+      ["u", output], // Inscription UTXO
       ["s", priceInSats.toString()], // Price in sats
       ["x", "deezy"], // Exchange name (e.g. "openordex")
     ],
@@ -46,17 +46,16 @@ function getSellEvent({
 
 // Function to sign Nostr event
 async function signNostrEvent({
-  utxo,
+  inscriptionId,
+  output,
   priceInSats,
   signedPsbt,
   pubkey,
   privkey,
 }) {
-  const { inscriptionId } = utxo;
-  const inscriptionUtxo = `${utxo.txid}:${utxo.vout}`;
   const event = getSellEvent({
     inscriptionId,
-    inscriptionUtxo,
+    output,
     priceInSats,
     signedPsbt,
     pubkey,
@@ -68,14 +67,16 @@ async function signNostrEvent({
 
 // Function to sign and broadcast Nostr event
 async function signAndBroadcastEvent({
-  utxo,
+  inscriptionId,
+  output,
   priceInSats,
   signedPsbt,
   pubkey,
   privkey,
 }) {
   const signedEvent = await signNostrEvent({
-    utxo,
+    inscriptionId,
+    output,
     priceInSats,
     signedPsbt,
     pubkey,
@@ -83,8 +84,8 @@ async function signAndBroadcastEvent({
   });
 
   console.log("signedEvent:", JSON.stringify(signedEvent, null, 2));
-
-  return publishEvent(signedEvent);
+  await publishEvent(signedEvent);
+  return signedEvent;
 }
 
 // Function to publish the event to the Nostr network
@@ -115,7 +116,7 @@ const publishEvent = async (event) => {
               console.info(`Event ${event.id} published to ${url}`);
               relay.close();
               clearTimeout(timeoutCheck);
-              resolve();
+              resolve({ id: event.id });
             });
 
             pub.on("failed", (reason) => {
@@ -124,7 +125,7 @@ const publishEvent = async (event) => {
               );
               relay.close();
               clearTimeout(timeoutCheck);
-              resolve();
+              reject(`Failed to publish ${event.id} to ${url}: ${reason}`);
             });
           });
 
@@ -132,7 +133,7 @@ const publishEvent = async (event) => {
             console.error(`Failed to connect to ${url}`, JSON.stringify(msg));
             clearTimeout(timeoutCheck);
             relay.close();
-            resolve();
+            reject(`Failed to connect to ${url}`, JSON.stringify(msg));
           });
 
           return relay.connect();
