@@ -5,6 +5,7 @@
   "main": "handle.js",
   "scripts": {
     "start": "sls offline",
+    "ts": "tsc -w --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
@@ -16,6 +17,7 @@
     "@serverless/typescript": "^3.30.1",
     "@types/aws-lambda": "^8.10.115",
     "@types/node": "^20.2.1",
+    "aws-lambda": "^1.0.7",
     "axios": "^1.4.0",
     "esbuild": "^0.17.19",
     "json-schema-to-ts": "^2.8.2",

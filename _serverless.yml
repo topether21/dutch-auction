@@ -53,13 +53,6 @@ provider:
           Resource: "*"
 
 functions:
-  isSpent:
-    handler: handler.isSpent
-    events:
-      - http:
-          path: tx/{output}/is-spent
-          method: get
-          cors: true
   getAuctionsByInscriptionId:
     handler: handler.getAuctionsByInscriptionId
     events:
@@ -67,13 +60,6 @@ functions:
           path: /inscription/{inscriptionId}
           method: get
           cors: true
-  publishEvent:
-    handler: handler.publishEvent
-    # events:
-    #   - http:
-    #       path: publish-event
-    #       method: post
-    #       cors: true
   createAuction:
     handler: handler.createAuction
     events:
@@ -81,17 +67,14 @@ functions:
           path: create-auction
           method: post
           cors: true
-          documentation:
-            summary: "Create Dutch Auction"
-            description: "Creates a Auction"
-
-  getAuctionStatusById:
-    handler: handler.getAuctionStatusById
+  stopAuction:
+    handler: handler.stopAuctionById
     events:
       - http:
-          path: auctions/id/{auctionId}
+          path: stop-auction/{id}
           method: get
           cors: true
+
   getAuctionsByAddress:
     handler: handler.getAuctionsByAddress
     events:

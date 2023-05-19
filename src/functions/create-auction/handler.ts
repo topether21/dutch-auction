@@ -4,17 +4,22 @@ const {
   EventBridgeClient,
 } = require("@aws-sdk/client-eventbridge");
 
+import { isSpent } from "@libs/inscriptions";
+import { getAuctionsByInscriptionId, saveAuction } from "@libs/db";
 import {
-  parseEventInput,
+  ValidatedEventAPIGatewayProxyEvent,
   createErrorResponse,
   createHttpResponse,
-} from "@libs/utils";
-import inscriptions from "@libs/inscriptions";
-import db from "@libs/db";
+  parseEventInput,
+} from "@libs/api-gateway";
+
+import schema from "./schema";
 
 const eventBridge = new EventBridgeClient({});
 
-export async function createAuction(event) {
+export const createAuction: ValidatedEventAPIGatewayProxyEvent<
+  typeof schema
+> = async (event) => {
   parseEventInput(event);
   const {
     startTime,
@@ -43,14 +48,14 @@ export async function createAuction(event) {
     output,
   };
   try {
-    const inscriptionStatus = await inscriptions.isSpent(auction.output);
+    const inscriptionStatus = await isSpent(auction.output);
     if (inscriptionStatus.spent) {
       return createErrorResponse({
         statusCode: 404,
         message: "Inscription is spent.",
       });
     }
-    const auctions = await db.getAuctionsByInscriptionId(inscriptionId);
+    const auctions = await getAuctionsByInscriptionId(inscriptionId);
     if (auctions.length > 0 && auctions.some((a) => a.status === "RUNNING")) {
       return createErrorResponse({
         statusCode: 404,
@@ -59,7 +64,7 @@ export async function createAuction(event) {
     }
     const now = Math.floor(new Date().getTime() / 1000);
     const validStartTime = startTime < now ? now + 5 : startTime; // Always start the auction
-    await db.saveAuction({ ...auction, startTime: validStartTime });
+    await saveAuction({ ...auction, startTime: validStartTime });
     const command = new PutEventsCommand({
       Entries: [
         {
@@ -79,4 +84,4 @@ export async function createAuction(event) {
       statusCode: 500,
     });
   }
-}
+};

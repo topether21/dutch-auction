@@ -48,6 +48,4 @@ const isSpent = async (output) => {
   // return data;
 };
 
-module.exports = {
-  isSpent,
-};
+export { isSpent };

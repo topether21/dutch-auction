@@ -1,3 +1,5 @@
+import { Auction } from "@types";
+
 const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
 const { DynamoDB } = require("@aws-sdk/client-dynamodb");
 
@@ -38,8 +40,9 @@ const getAuctionsByNostrAddress = async (nostrAddress) => {
   }
 };
 
-const getAuctionsByInscriptionId = async (inscriptionId) => {
-  console.log(`inscriptionId: ${inscriptionId}, type: ${typeof nostrAddress}`);
+const getAuctionsByInscriptionId = async (
+  inscriptionId: string
+): Promise<Auction[]> => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     IndexName: "inscriptionId-index",
@@ -51,7 +54,6 @@ const getAuctionsByInscriptionId = async (inscriptionId) => {
       ":na": inscriptionId,
     },
   };
-
   try {
     const { Items } = await client.query(params);
     return Items;
@@ -195,7 +197,7 @@ const updateAuctionPrice = async (auctionId, price) => {
   }
 };
 
-module.exports = {
+export {
   saveAuction,
   getAuction,
   updateAuctionStatus,
