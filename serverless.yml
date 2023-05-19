@@ -81,6 +81,10 @@ functions:
           path: create-auction
           method: post
           cors: true
+          documentation:
+            summary: "Create Dutch Auction"
+            description: "Creates a Auction"
+
   getAuctionStatusById:
     handler: handler.getAuctionStatusById
     events:
@@ -194,6 +198,9 @@ resources:
             Projection:
               ProjectionType: ALL
 custom:
+  esbuild:
+    bundle: true
+    minify: false
   serverlessSsmFetch:
     NOSTR_PRIVATE_KEY: NOSTR_PRIVATE_KEY~true
 
@@ -213,6 +220,7 @@ custom:
     allowCredentials: false
 
 plugins:
+  - serverless-esbuild
   - serverless-step-functions
   - serverless-ssm-fetch
   - serverless-offline
