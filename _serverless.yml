@@ -64,7 +64,7 @@ functions:
     handler: handler.createAuction
     events:
       - http:
-          path: create-auction
+          path: /create
           method: post
           cors: true
   stopAuction:

@@ -7,7 +7,7 @@ export const createAuction = {
     {
       http: {
         method: "post",
-        path: "create-auction",
+        path: "create",
         request: {
           schemas: {
             "application/json": schema,
