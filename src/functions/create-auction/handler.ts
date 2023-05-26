@@ -8,12 +8,16 @@ import { isSpent } from "@libs/inscriptions";
 import { getAuctionsByInscriptionId, saveAuction } from "@libs/db";
 import {
   ValidatedEventAPIGatewayProxyEvent,
-  createErrorResponse,
   createHttpResponse,
   parseEventInput,
 } from "@libs/api-gateway";
 
 import schema from "./schema";
+import {
+  auctionIsRunning,
+  auctionIsSpent,
+  internalServerError,
+} from "@functions/errors";
 
 const eventBridge = new EventBridgeClient({});
 
@@ -50,17 +54,11 @@ export const createAuction: ValidatedEventAPIGatewayProxyEvent<
   try {
     const inscriptionStatus = await isSpent(auction.output);
     if (inscriptionStatus.spent) {
-      return createErrorResponse({
-        statusCode: 404,
-        message: "Inscription is spent.",
-      });
+      return auctionIsSpent();
     }
     const auctions = await getAuctionsByInscriptionId(inscriptionId);
     if (auctions.length > 0 && auctions.some((a) => a.status === "RUNNING")) {
-      return createErrorResponse({
-        statusCode: 404,
-        message: "Auction running for this inscription.",
-      });
+      return auctionIsRunning();
     }
     const now = Math.floor(new Date().getTime() / 1000);
     const validStartTime = startTime < now ? now + 5 : startTime; // Always start the auction
@@ -80,8 +78,6 @@ export const createAuction: ValidatedEventAPIGatewayProxyEvent<
     return createHttpResponse(200, auction);
   } catch (error) {
     console.error("Error in createAuction:", error);
-    return createErrorResponse({
-      statusCode: 500,
-    });
+    return internalServerError();
   }
 };

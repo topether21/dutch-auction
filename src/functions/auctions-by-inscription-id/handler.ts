@@ -1,5 +1,5 @@
+import { auctionNotFound, internalServerError } from "@functions/errors";
 import { createHttpResponse } from "@libs/api-gateway";
-import { createErrorResponse } from "@libs/api-gateway";
 import { getAuctionsByInscriptionId } from "@libs/db";
 
 export const auctionsByInscriptionId = async (event) => {
@@ -7,16 +7,11 @@ export const auctionsByInscriptionId = async (event) => {
   try {
     const auctions = await getAuctionsByInscriptionId(inscriptionId);
     if (!auctions) {
-      return createErrorResponse({
-        statusCode: 404,
-        message: "Auctions not found",
-      });
+      return auctionNotFound();
     }
-    return createHttpResponse(200, JSON.stringify(auctions));
+    return createHttpResponse(200, auctions);
   } catch (error) {
     console.error(error);
-    return createErrorResponse({
-      statusCode: 500,
-    });
+    return internalServerError();
   }
 };

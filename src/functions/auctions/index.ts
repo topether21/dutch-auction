@@ -1,17 +1,17 @@
 import { handlerPath } from "@libs/handler-resolver";
 
-export const auctionsByInscriptionId = {
-  handler: `${handlerPath(__dirname)}/handler.auctionsByInscriptionId`,
+export const getAuctionsByAddress = {
+  handler: `${handlerPath(__dirname)}/handler.getAuctionsByAddress`,
   events: [
     {
       http: {
         method: "get",
-        path: "/inscription/{inscriptionId}",
+        path: "/auctions/address/{address}",
         cors: true,
         request: {
           parameters: {
             paths: {
-              inscriptionId: true,
+              address: true,
             },
           },
         },

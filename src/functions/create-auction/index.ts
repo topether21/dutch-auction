@@ -8,6 +8,7 @@ export const createAuction = {
       http: {
         method: "post",
         path: "create",
+        cors: true,
         request: {
           schemas: {
             "application/json": schema,

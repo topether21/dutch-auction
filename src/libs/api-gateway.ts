@@ -28,7 +28,7 @@ export function createHttpResponse(statusCode, body) {
 
 export function createErrorResponse({
   error = {},
-  message = "Internal Server Error",
+  message = "Internal Server Error.",
   statusCode = 500,
 }) {
   console.error(message, error);

@@ -2,6 +2,8 @@ import type { AWS } from "@serverless/typescript";
 
 import { createAuction } from "@functions/create-auction";
 import { auctionsByInscriptionId } from "@functions/auctions-by-inscription-id";
+import { stopAuction } from "@functions/stop-auction";
+import { getAuctionsByAddress } from "@functions/auctions-by-address";
 
 type AWSConfig = AWS & {
   stepFunctions?: object;
@@ -85,6 +87,8 @@ const serverlessConfiguration: AWSConfig = {
   functions: {
     createAuction,
     auctionsByInscriptionId,
+    stopAuction,
+    getAuctionsByAddress,
   },
   //   stepFunctions: {
   //     stateMachines: {
