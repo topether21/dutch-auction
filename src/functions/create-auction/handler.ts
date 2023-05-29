@@ -22,10 +22,10 @@ const eventBridge = new EventBridgeClient({});
 export const createAuction = async (event: APIGatewayEvent) => {
   parseEventInput(event);
   const {
-    startTime,
+    startTime, // IMPORTANT: Unix timestamps
     decreaseAmount,
     timeBetweenEachDecrease,
-    startPrice,
+    initialPrice,
     reservePrice,
     metadata,
     nostrAddress,
@@ -38,12 +38,12 @@ export const createAuction = async (event: APIGatewayEvent) => {
     startTime,
     decreaseAmount,
     timeBetweenEachDecrease,
-    startPrice,
+    initialPrice,
     reservePrice,
     metadata: metadata.map(
       (m) => ({ ...(m as {}), id: v4() } as AuctionMetadata)
     ),
-    currentPrice: startPrice,
+    currentPrice: initialPrice,
     status: "PENDING" as AuctionStatus,
     nostrAddress,
     inscriptionId,
@@ -58,8 +58,8 @@ export const createAuction = async (event: APIGatewayEvent) => {
     if (auctions.length > 0 && auctions.some((a) => a.status === "RUNNING")) {
       return auctionIsRunning();
     }
-    const now = Math.floor(new Date().getTime() / 1000);
-    const validStartTime = startTime < now ? now + 5 : startTime; // Always start the auction
+    const now = Math.floor(new Date().getTime() / 1000) + 5; // Always start the auction, plus 5 seconds;
+    const validStartTime = startTime < now ? now : startTime;
     await saveAuction({ ...auction, startTime: validStartTime });
     const command = new PutEventsCommand({
       Entries: [
@@ -68,7 +68,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
           DetailType: "AuctionScheduled",
           Detail: JSON.stringify({ id }),
           EventBusName: "default",
-          Time: new Date(validStartTime),
+          Time: new Date(validStartTime * 1000), // milliseconds
         },
       ],
     });

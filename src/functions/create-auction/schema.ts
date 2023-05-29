@@ -2,7 +2,7 @@ export interface CreateAuction {
   startTime: number;
   decreaseAmount: number;
   timeBetweenEachDecrease: number;
-  startPrice: number;
+  initialPrice: number;
   reservePrice: number;
   metadata: Metadata[];
   nostrAddress: string;

@@ -19,7 +19,7 @@ export interface Auction {
   reservePrice: number;
   currentPrice: number;
   timeBetweenEachDecrease: number;
-  startPrice: number;
+  initialPrice: number;
 }
 
 export interface AuctionMetadata {

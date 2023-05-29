@@ -13,9 +13,9 @@ export async function startStateMachine(auction: Auction) {
       startTime: auction.startTime,
       decreaseAmount: auction.decreaseAmount,
       timeBetweenEachDecrease: auction.timeBetweenEachDecrease,
-      startPrice: auction.startPrice,
+      initialPrice: auction.initialPrice,
       reservePrice: auction.reservePrice,
-      currentPrice: auction.startPrice,
+      currentPrice: auction.initialPrice,
       metadata: auction.metadata,
     }),
   };
