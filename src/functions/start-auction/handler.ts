@@ -1,5 +1,5 @@
 import { internalServerError } from "@functions/errors";
-import { startStateMachine } from "@functions/state-machine";
+import { startStateMachine } from "@functions/start-state-machine";
 import { createHttpResponse, createErrorResponse } from "@libs/api-gateway";
 import { getAuction, updateAuctionStatus } from "@libs/db";
 import { isSpent } from "@libs/inscriptions";
