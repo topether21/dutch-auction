@@ -1,29 +1,25 @@
-const { v4 } = require("uuid");
-const {
+import { v4 } from "uuid";
+import {
   PutEventsCommand,
   EventBridgeClient,
-} = require("@aws-sdk/client-eventbridge");
+} from "@aws-sdk/client-eventbridge";
 
 import { isSpent } from "@libs/inscriptions";
 import { getAuctionsByInscriptionId, saveAuction } from "@libs/db";
-import {
-  ValidatedEventAPIGatewayProxyEvent,
-  createHttpResponse,
-  parseEventInput,
-} from "@libs/api-gateway";
+import { createHttpResponse, parseEventInput } from "@libs/api-gateway";
 
-import schema from "./schema";
+import { CreateAuction } from "./schema";
 import {
   auctionIsRunning,
   auctionIsSpent,
   internalServerError,
 } from "@functions/errors";
+import { APIGatewayEvent } from "aws-lambda";
+import { AuctionMetadata, AuctionStatus } from "@types";
 
 const eventBridge = new EventBridgeClient({});
 
-export const createAuction: ValidatedEventAPIGatewayProxyEvent<
-  typeof schema
-> = async (event) => {
+export const createAuction = async (event: APIGatewayEvent) => {
   parseEventInput(event);
   const {
     startTime,
@@ -35,7 +31,7 @@ export const createAuction: ValidatedEventAPIGatewayProxyEvent<
     nostrAddress,
     inscriptionId,
     output,
-  } = event.body;
+  } = event.body as unknown as CreateAuction;
   const id = v4();
   const auction = {
     id,
@@ -44,9 +40,11 @@ export const createAuction: ValidatedEventAPIGatewayProxyEvent<
     timeBetweenEachDecrease,
     startPrice,
     reservePrice,
-    metadata: metadata.map((m) => ({ ...m, id: v4() })),
+    metadata: metadata.map(
+      (m) => ({ ...(m as {}), id: v4() } as AuctionMetadata)
+    ),
     currentPrice: startPrice,
-    status: "PENDING",
+    status: "PENDING" as AuctionStatus,
     nostrAddress,
     inscriptionId,
     output,

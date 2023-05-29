@@ -1,15 +1,11 @@
-import { auctionNotFound, internalServerError } from "@functions/errors";
+import { internalServerError } from "@functions/errors";
 import { createHttpResponse } from "@libs/api-gateway";
-import { getAuctionsByNostrAddress } from "@libs/db";
+import { listAuctions } from "@libs/db";
 
-export const getAuctionsByAddress = async (event) => {
-  const address = event.pathParameters.address;
+export const getAuctions = async () => {
   try {
-    const auction = await getAuctionsByNostrAddress(address);
-    if (!auction) {
-      return auctionNotFound();
-    }
-    return createHttpResponse(200, auction);
+    const auctions = await listAuctions();
+    return createHttpResponse(200, auctions);
   } catch (error) {
     console.error(error);
     return internalServerError();

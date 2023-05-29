@@ -4,6 +4,10 @@ import { createAuction } from "@functions/create-auction";
 import { auctionsByInscriptionId } from "@functions/auctions-by-inscription-id";
 import { stopAuction } from "@functions/stop-auction";
 import { getAuctionsByAddress } from "@functions/auctions-by-address";
+import { auctions } from "@functions/auctions";
+import { startAuction } from "@functions/start-auction";
+import { updateAuctionStatus } from "@functions/update-auction-status";
+import { finishAuction } from "@functions/finish-auction";
 
 type AWSConfig = AWS & {
   stepFunctions?: object;
@@ -89,58 +93,66 @@ const serverlessConfiguration: AWSConfig = {
     auctionsByInscriptionId,
     stopAuction,
     getAuctionsByAddress,
+    auctions,
+    startAuction,
+    updateAuctionStatus,
+    finishAuction,
   },
-  //   stepFunctions: {
-  //     stateMachines: {
-  //       DutchAuctionStateMachine: {
-  //         name: "DutchAuctionStateMachine-${self:provider.stage}",
-  //         definition: {
-  //           Comment:
-  //             "A Step Function Machine to manage the Dutch Auction process.",
-  //           StartAt: "InitializeAuction",
-  //           States: {
-  //             InitializeAuction: {
-  //               Type: "Pass",
-  //               ResultPath: "$",
-  //               Next: "updateAuctionStatus",
-  //             },
-  //             updateAuctionStatus: {
-  //               Type: "Task",
-  //               Resource: "Fn::GetAtt: [updateAuctionStatus, Arn]",
-  //               ResultPath: "$",
-  //               Next: "IsAuctionFinished",
-  //             },
-  //             IsAuctionFinished: {
-  //               Type: "Choice",
-  //               Choices: [
-  //                 {
-  //                   Variable: "$.currentPrice",
-  //                   NumericLessThanEqualsPath: "$.reservePrice",
-  //                   Next: "AuctionFinished",
-  //                 },
-  //                 {
-  //                   Variable: "$.auctionFinished",
-  //                   BooleanEquals: true,
-  //                   Next: "AuctionFinished",
-  //                 },
-  //               ],
-  //               Default: "WaitRoundDuration",
-  //             },
-  //             WaitRoundDuration: {
-  //               Type: "Wait",
-  //               SecondsPath: "$.timeBetweenEachDecrease",
-  //               Next: "updateAuctionStatus",
-  //             },
-  //             AuctionFinished: {
-  //               Type: "Task",
-  //               Resource: "Fn::GetAtt: [finishAuction, Arn]",
-  //               End: true,
-  //             },
-  //           },
-  //         },
-  //       },
-  //     },
-  //   },
+  stepFunctions: {
+    stateMachines: {
+      DutchAuctionStateMachine: {
+        name: "DutchAuctionStateMachine-${self:provider.stage}",
+        definition: {
+          Comment:
+            "A Step Function Machine to manage the Dutch Auction process.",
+          StartAt: "InitializeAuction",
+          States: {
+            InitializeAuction: {
+              Type: "Pass",
+              ResultPath: "$",
+              Next: "updateAuctionStatus",
+            },
+            updateAuctionStatus: {
+              Type: "Task",
+              Resource: {
+                "Fn::GetAtt": ["UpdateAuctionStatusLambdaFunction", "Arn"],
+              },
+              ResultPath: "$",
+              Next: "IsAuctionFinished",
+            },
+            IsAuctionFinished: {
+              Type: "Choice",
+              Choices: [
+                {
+                  Variable: "$.currentPrice",
+                  NumericLessThanEqualsPath: "$.reservePrice",
+                  Next: "AuctionFinished",
+                },
+                {
+                  Variable: "$.auctionFinished",
+                  BooleanEquals: true,
+                  Next: "AuctionFinished",
+                },
+              ],
+              Default: "WaitRoundDuration",
+            },
+            WaitRoundDuration: {
+              Type: "Wait",
+              SecondsPath: "$.timeBetweenEachDecrease",
+              Next: "updateAuctionStatus",
+            },
+            AuctionFinished: {
+              Type: "Task",
+              Resource: {
+                "Fn::GetAtt": ["FinishAuctionLambdaFunction", "Arn"],
+              },
+              End: true,
+            },
+          },
+        },
+      },
+    },
+  },
   resources: {
     Resources: {
       AuctionStatesTable: {
@@ -212,9 +224,9 @@ const serverlessConfiguration: AWSConfig = {
   custom: {
     esbuild: {
       bundle: true,
-      minify: false,
+      minify: true,
       sourcemap: true,
-      exclude: ["aws-sdk"],
+      exclude: ["aws-sdk", "@aws-sdk"],
       target: "node18",
       define: { "require.resolve": undefined },
       platform: "node",

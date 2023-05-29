@@ -1,6 +1,10 @@
-const https = require("https");
+import { request } from "https";
 
-async function get(url) {
+interface HttpResponse {
+  data: any;
+}
+
+async function get(url: string): Promise<HttpResponse> {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
 
@@ -10,7 +14,7 @@ async function get(url) {
       method: "GET",
     };
 
-    const req = https.request(options, (res) => {
+    const req = request(options, (res) => {
       res.setEncoding("utf8");
       let responseBody = "";
 

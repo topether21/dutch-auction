@@ -327,10 +327,6 @@ async function updateAuctionStatus(event) {
       nostrEventId: broadcastedEvent.id,
     };
     await db.updateAuctionMetadata(id, auctionMetadata);
-    console.log(
-      "signAndBroadcastEvent complete",
-      JSON.stringify(events, null, 2)
-    );
   } catch (error) {
     console.error("Error in signAndBroadcastEvent:", error);
   }

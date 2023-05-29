@@ -1,4 +1,3 @@
-import schema from "./schema";
 import { handlerPath } from "@libs/handler-resolver";
 
 export const createAuction = {
@@ -9,11 +8,6 @@ export const createAuction = {
         method: "post",
         path: "create",
         cors: true,
-        request: {
-          schemas: {
-            "application/json": schema,
-          },
-        },
       },
     },
   ],

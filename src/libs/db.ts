@@ -1,13 +1,13 @@
-import { Auction } from "@types";
+import { Auction, AuctionId, AuctionMetadata, AuctionStatus } from "@types";
 
-const { DynamoDBDocument } = require("@aws-sdk/lib-dynamodb");
-const { DynamoDB } = require("@aws-sdk/client-dynamodb");
+import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
+import { DynamoDB } from "@aws-sdk/client-dynamodb";
 
-const client = DynamoDBDocument.from(new DynamoDB(), {
+const client = DynamoDBDocument.from(new DynamoDB({}), {
   marshallOptions: { removeUndefinedValues: true, convertEmptyValues: true },
 });
 
-function removeUndefinedValues(obj) {
+function removeUndefinedValues(obj: any) {
   for (let k in obj) {
     if (obj[k] === undefined) {
       delete obj[k];
@@ -17,7 +17,7 @@ function removeUndefinedValues(obj) {
   }
 }
 
-const getAuctionsByNostrAddress = async (nostrAddress) => {
+const getAuctionsByNostrAddress = async (nostrAddress: string) => {
   console.log(`nostrAddress: ${nostrAddress}, type: ${typeof nostrAddress}`);
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
@@ -33,7 +33,7 @@ const getAuctionsByNostrAddress = async (nostrAddress) => {
 
   try {
     const { Items } = await client.query(params);
-    return Items;
+    return Items as Auction[];
   } catch (error) {
     console.error(`Error getting auctions by nostrAddress: ${error}`);
     throw error;
@@ -56,14 +56,14 @@ const getAuctionsByInscriptionId = async (
   };
   try {
     const { Items } = await client.query(params);
-    return Items;
+    return Items as Auction[];
   } catch (error) {
     console.error(`Error getting auctions by nostrAddress: ${error}`);
     throw error;
   }
 };
 
-const saveAuction = async (auction) => {
+const saveAuction = async (auction: Auction) => {
   removeUndefinedValues(auction);
   if (typeof auction.nostrAddress !== "string") {
     throw new Error("nostrAddress must be a string");
@@ -88,14 +88,14 @@ const listAuctions = async () => {
 
   try {
     const { Items } = await client.scan(params);
-    return Items;
+    return Items as Auction[];
   } catch (error) {
     console.error(`Error listing auctions: ${error}`);
     throw error;
   }
 };
 
-const getAuction = async (auctionId) => {
+const getAuction = async (auctionId: string) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {
@@ -105,14 +105,14 @@ const getAuction = async (auctionId) => {
 
   try {
     const { Item } = await client.get(params);
-    return Item;
+    return Item as Auction;
   } catch (error) {
     console.error(`Error getting auction: ${error}`);
     throw error;
   }
 };
 
-const finishAuction = async (auctionId) => {
+const finishAuction = async (auctionId: AuctionId) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: { id: auctionId },
@@ -134,7 +134,10 @@ const finishAuction = async (auctionId) => {
   }
 };
 
-const updateAuctionStatus = async (auctionId, status) => {
+const updateAuctionStatus = async (
+  auctionId: AuctionId,
+  status: AuctionStatus
+) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {
@@ -157,7 +160,10 @@ const updateAuctionStatus = async (auctionId, status) => {
   }
 };
 
-const updateAuctionMetadata = async (auctionId, metadata) => {
+const updateAuctionMetadata = async (
+  auctionId: AuctionId,
+  metadata: AuctionMetadata[]
+) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {
@@ -177,7 +183,7 @@ const updateAuctionMetadata = async (auctionId, metadata) => {
   }
 };
 
-const updateAuctionPrice = async (auctionId, price) => {
+const updateAuctionPrice = async (auctionId: AuctionId, price: number) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {

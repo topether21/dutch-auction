@@ -1,20 +1,13 @@
 import { handlerPath } from "@libs/handler-resolver";
 
-export const getAuctionsByAddress = {
-  handler: `${handlerPath(__dirname)}/handler.getAuctionsByAddress`,
+export const auctions = {
+  handler: `${handlerPath(__dirname)}/handler.getAuctions`,
   events: [
     {
       http: {
         method: "get",
-        path: "/auctions/address/{address}",
+        path: "auctions",
         cors: true,
-        request: {
-          parameters: {
-            paths: {
-              address: true,
-            },
-          },
-        },
       },
     },
   ],
