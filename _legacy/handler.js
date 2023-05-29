@@ -231,6 +231,33 @@ const getAuctionStatusById = async (event) => {
   }
 };
 
+const stopAuctionById = async (event) => {
+  const auctionId = event.pathParameters.id;
+  try {
+    const auction = await db.getAuction(auctionId);
+    if (!auction) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ message: "Auction not found" }),
+        headers,
+      };
+    }
+    await db.updateAuctionStatus(auctionId, "STOPPED");
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ ...auction, status: "STOPPED" }),
+      headers,
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Internal Server Error" }),
+      headers,
+    };
+  }
+};
+
 const getAuctions = async () => {
   try {
     const auctions = await db.listAuctions();
@@ -266,6 +293,12 @@ async function updateAuctionStatus(event) {
       auctionFinished: true,
     };
   }
+  if (auction.status === "STOPPED") {
+    return {
+      ...stateMachineAuction,
+      auctionFinished: true,
+    };
+  }
   if (stateMachineMetadata.length === 0) {
     const status = "FINISHED";
     await db.updateAuctionStatus(id, status);
@@ -294,10 +327,6 @@ async function updateAuctionStatus(event) {
       nostrEventId: broadcastedEvent.id,
     };
     await db.updateAuctionMetadata(id, auctionMetadata);
-    console.log(
-      "signAndBroadcastEvent complete",
-      JSON.stringify(events, null, 2)
-    );
   } catch (error) {
     console.error("Error in signAndBroadcastEvent:", error);
   }
@@ -315,7 +344,11 @@ async function finishAuction(event) {
   if (!auction) {
     throw new createError.NotFound(`Auction with ID "${id}" not found.`);
   }
-  if (auction.status !== "FINISHED" && auction.status !== "SPENT") {
+  if (
+    auction.status !== "FINISHED" &&
+    auction.status !== "SPENT" &&
+    auction.status !== "STOPPED"
+  ) {
     auction.status = "FINISHED";
     await db.finishAuction(id);
   }
@@ -362,7 +395,7 @@ const isSpent = async (event) => {
 module.exports = {
   isSpent,
   createAuction,
-  getAuctionStatusById,
+  stopAuctionById,
   getAuctionsByAddress,
   getAuctionsByInscriptionId,
   getAuctions,

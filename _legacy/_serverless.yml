@@ -53,13 +53,6 @@ provider:
           Resource: "*"
 
 functions:
-  isSpent:
-    handler: handler.isSpent
-    events:
-      - http:
-          path: tx/{output}/is-spent
-          method: get
-          cors: true
   getAuctionsByInscriptionId:
     handler: handler.getAuctionsByInscriptionId
     events:
@@ -67,27 +60,21 @@ functions:
           path: /inscription/{inscriptionId}
           method: get
           cors: true
-  publishEvent:
-    handler: handler.publishEvent
-    # events:
-    #   - http:
-    #       path: publish-event
-    #       method: post
-    #       cors: true
   createAuction:
     handler: handler.createAuction
     events:
       - http:
-          path: create-auction
+          path: /create
           method: post
           cors: true
-  getAuctionStatusById:
-    handler: handler.getAuctionStatusById
+  stopAuction:
+    handler: handler.stopAuctionById
     events:
       - http:
-          path: auctions/id/{auctionId}
+          path: stop-auction/{id}
           method: get
           cors: true
+
   getAuctionsByAddress:
     handler: handler.getAuctionsByAddress
     events:
@@ -194,6 +181,9 @@ resources:
             Projection:
               ProjectionType: ALL
 custom:
+  esbuild:
+    bundle: true
+    minify: false
   serverlessSsmFetch:
     NOSTR_PRIVATE_KEY: NOSTR_PRIVATE_KEY~true
 
@@ -213,6 +203,7 @@ custom:
     allowCredentials: false
 
 plugins:
+  - serverless-esbuild
   - serverless-step-functions
   - serverless-ssm-fetch
   - serverless-offline
