@@ -2,7 +2,7 @@ import "websocket-polyfill";
 import { getEventHash, relayInit, signEvent, Event } from "nostr-tools";
 
 const NOSTR_KIND_INSCRIPTION = 802;
-const NOSTR_RELAY_URL = "wss://nostr.openordex.org";
+const NOSTR_RELAY_URL = "wss://relay.deezy.io";
 const RELAYS = [NOSTR_RELAY_URL];
 
 interface SellEventParams {
@@ -83,6 +83,10 @@ async function signNostrEvent({
   return signedEvent;
 }
 
+type PublishedEvent = {
+  id: string;
+};
+
 // Function to sign and broadcast Nostr event
 async function signAndBroadcastEvent({
   inscriptionId,
@@ -91,7 +95,7 @@ async function signAndBroadcastEvent({
   signedPsbt,
   pubkey,
   privkey,
-}: SellEventParams & { privkey: string }): Promise<SignedEvent> {
+}: SellEventParams & { privkey: string }) {
   const signedEvent = await signNostrEvent({
     inscriptionId,
     output,
@@ -102,8 +106,8 @@ async function signAndBroadcastEvent({
   });
 
   console.log("signedEvent:", JSON.stringify(signedEvent, null, 2));
-  await publishEvent(signedEvent);
-  return signedEvent;
+  const events = await publishEvent(signedEvent);
+  return events;
 }
 
 // Function to publish the event to the Nostr network
@@ -112,7 +116,7 @@ const publishEvent = async (event: Event) => {
 
   const promises = RELAYS.map(
     (url) =>
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         try {
           const relay = relayInit(url);
           const timeout = 10000;
@@ -120,7 +124,7 @@ const publishEvent = async (event: Event) => {
           const timeoutAndClose = () => {
             console.error(`Timeout error: event ${event.id} relay ${url}`);
             relay.close();
-            reject(new Error(`Timeout error: event ${event.id} relay ${url}`));
+            resolve({ id: "" });
           };
 
           let timeoutCheck = setTimeout(timeoutAndClose, timeout);
@@ -143,7 +147,7 @@ const publishEvent = async (event: Event) => {
               );
               relay.close();
               clearTimeout(timeoutCheck);
-              reject(`Failed to publish ${event.id} to ${url}: ${reason}`);
+              resolve({ id: "" });
             });
           });
 
@@ -151,21 +155,26 @@ const publishEvent = async (event: Event) => {
             console.error(`Failed to connect to ${url}`);
             clearTimeout(timeoutCheck);
             relay.close();
-            reject(`Failed to connect to ${url}`);
+            resolve({ id: "" });
           });
 
           return relay.connect();
         } catch (error) {
           console.error("Failed to publish", error);
-          reject(error);
+          resolve({ id: "" });
         }
       })
   );
 
   try {
-    await Promise.all(promises);
+    const events: PublishedEvent[] = (await Promise.all(
+      promises
+    )) as PublishedEvent[];
+    console.log("events", events);
+    return events;
   } catch (error) {
     console.error(error);
+    return [];
   }
 };
 

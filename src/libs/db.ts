@@ -169,9 +169,13 @@ const updateAuctionMetadata = async (
     Key: {
       id: auctionId,
     },
-    UpdateExpression: "SET metadata = :metadata",
+    UpdateExpression: "SET metadata = :metadata, #status = :status",
     ExpressionAttributeValues: {
       ":metadata": metadata,
+      ":status": "RUNNING",
+    },
+    ExpressionAttributeNames: {
+      "#status": "status",
     },
   };
 

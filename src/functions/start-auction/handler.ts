@@ -25,11 +25,8 @@ export const startAuction = async ({ detail: { id } }: EventType) => {
       await updateAuctionStatus(id, status);
       return createHttpResponse(200, { ...auction, status });
     }
-
     await startStateMachine({ ...auction });
-    const status = "RUNNING";
-    await updateAuctionStatus(id, status);
-    return createHttpResponse(200, { ...auction, status });
+    return createHttpResponse(200, { ...auction });
   } catch (error) {
     console.error("Error in startAuction:", error);
     return internalServerError();

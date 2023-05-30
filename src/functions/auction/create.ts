@@ -75,7 +75,8 @@ export const createAuction = async (event: APIGatewayEvent) => {
         },
       ],
     });
-    await eventBridge.send(command);
+    const eventResult = await eventBridge.send(command);
+    console.log("eventResult", eventResult);
     return createHttpResponse(200, auction);
   } catch (error) {
     console.error("Error in createAuction:", error);

@@ -13,6 +13,10 @@ export async function updateAuctionStatus(event: Auction) {
   const auction = await getAuction(id);
   const auctionMetadata = auction.metadata;
   const stateMachineAuction = { ...auction, metadata: stateMachineMetadata };
+  const deepCopyStateMachineAuction = JSON.parse(
+    JSON.stringify(stateMachineAuction)
+  );
+
   if (!auction) {
     throw new Error(`Auction with ID "${id}" not found.`);
   }
@@ -30,6 +34,10 @@ export async function updateAuctionStatus(event: Auction) {
       ...stateMachineAuction,
       auctionFinished: true,
     };
+  }
+  if (auction.status === "PENDING") {
+    const status: AuctionStatus = "RUNNING";
+    await updateAuction(id, status);
   }
   if (stateMachineMetadata.length === 0) {
     const status: AuctionStatus = "FINISHED";
@@ -51,7 +59,15 @@ export async function updateAuctionStatus(event: Auction) {
       priceInSats: currentPrice,
       signedPsbt: scheduledEvent.signedPsbt,
     };
-    const broadcastedEvent = await signAndBroadcastEvent(input);
+    const broadcastedEvents = await signAndBroadcastEvent(input);
+    const broadcastedEvent = broadcastedEvents.find((event) => event.id !== "");
+    if (!broadcastedEvent) {
+      // skip current round
+      return {
+        ...deepCopyStateMachineAuction,
+        auctionFinished: false,
+      };
+    }
     const currentMetadataIndex = auctionMetadata.findIndex(
       (m) => m.id === scheduledEvent.id
     );
