@@ -10,8 +10,8 @@ import { createHttpResponse, parseEventInput } from "@libs/api-gateway";
 
 import { CreateAuction } from "./schema";
 import {
-  auctionIsRunning,
-  auctionIsSpent,
+  errorAuctionIsRunning,
+  errorAuctionIsSpent,
   internalServerError,
 } from "@functions/errors";
 import { APIGatewayEvent } from "aws-lambda";
@@ -52,15 +52,13 @@ export const createAuction = async (event: APIGatewayEvent) => {
   try {
     const inscriptionStatus = await isSpent(auction.output);
     if (inscriptionStatus.spent) {
-      return auctionIsSpent();
+      return errorAuctionIsSpent();
     }
     const auctions = await getAuctionsByInscriptionId(inscriptionId);
     if (auctions.length > 0 && auctions.some((a) => a.status === "RUNNING")) {
-      return auctionIsRunning();
+      return errorAuctionIsRunning();
     }
-    const now = Math.floor(new Date().getTime() / 1000) + 5; // Always start the auction, plus 5 seconds;
-    const validStartTime = startTime < now ? now : startTime;
-    await saveAuction({ ...auction, startTime: validStartTime });
+    await saveAuction({ ...auction, startTime });
     const command = new PutEventsCommand({
       Entries: [
         {
@@ -68,7 +66,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
           DetailType: "AuctionScheduled",
           Detail: JSON.stringify({ id }),
           EventBusName: "default",
-          Time: new Date(validStartTime * 1000), // milliseconds
+          Time: new Date(startTime * 1000), // milliseconds
         },
       ],
     });

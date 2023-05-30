@@ -1,4 +1,4 @@
-import { auctionNotFound, internalServerError } from "@functions/errors";
+import { errorAuctionNotFound, internalServerError } from "@functions/errors";
 import { createHttpResponse } from "@libs/api-gateway";
 import { getAuctionsByInscriptionId } from "@libs/db";
 import { APIGatewayEvent } from "aws-lambda";
@@ -9,7 +9,7 @@ export const auctionsByInscriptionId = async (event: APIGatewayEvent) => {
   try {
     const auctions = await getAuctionsByInscriptionId(inscriptionId);
     if (!auctions) {
-      return auctionNotFound();
+      return errorAuctionNotFound();
     }
     return createHttpResponse(200, auctions);
   } catch (error) {

@@ -1,7 +1,7 @@
 import { Auction, AuctionId, AuctionMetadata, AuctionStatus } from "@types";
 
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
-import { DynamoDB } from "@aws-sdk/client-dynamodb";
+import { DynamoDB, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 
 const client = DynamoDBDocument.from(new DynamoDB({}), {
   marshallOptions: { removeUndefinedValues: true, convertEmptyValues: true },
@@ -203,6 +203,34 @@ const updateAuctionPrice = async (auctionId: AuctionId, price: number) => {
   }
 };
 
+const deleteAuctionsByInscriptionId = async (inscriptionId: string) => {
+  const auctions = await getAuctionsByInscriptionId(inscriptionId);
+
+  const ids = auctions.map((auction) => auction.id);
+
+  const deletePromises = auctions.map((auction) => {
+    const params = {
+      TableName: process.env.DYNAMODB_TABLE,
+      Key: {
+        id: { S: auction.id },
+      },
+    };
+    const command = new DeleteItemCommand(params);
+    return client.send(command);
+  });
+
+  try {
+    await Promise.all(deletePromises);
+    console.log(
+      `Deleted ${auctions.length} records with inscriptionId: ${inscriptionId}`
+    );
+    return ids;
+  } catch (error) {
+    console.error(`Error deleting auctions by inscriptionId: ${error}`);
+    throw error;
+  }
+};
+
 export {
   saveAuction,
   getAuction,
@@ -213,4 +241,5 @@ export {
   getAuctionsByInscriptionId,
   listAuctions,
   finishAuction,
+  deleteAuctionsByInscriptionId,
 };
