@@ -4,14 +4,10 @@ import { getEventHash, relayInit, signEvent, Event } from "nostr-tools";
 const NOSTR_KIND_INSCRIPTION = 802;
 const RELAYS = [
   "wss://relay.deezy.io",
-  "wss://relay.walletofsatoshi.com",
-  "wss://relay.damus.io",
   "wss://nostr-pub.wellorder.net",
   "wss://nostr.bitcoiner.social",
-  "wss://nostr.onsats.org",
-  "wss://nostr-relay.wlvs.space",
-  "wss://nostr-pub.semisol.dev",
-  "wss://relay.nostr.info",
+  "wss://relay.damus.io",
+  "wss://nostr.openordex.org",
 ];
 
 interface SellEventParams {
@@ -97,6 +93,7 @@ type PublishedEvent = {
 };
 
 // Function to sign and broadcast Nostr event
+// Function to sign and broadcast Nostr event
 async function signAndBroadcastEvent({
   inscriptionId,
   output,
@@ -105,18 +102,23 @@ async function signAndBroadcastEvent({
   pubkey,
   privkey,
 }: SellEventParams & { privkey: string }) {
-  const signedEvent = await signNostrEvent({
-    inscriptionId,
-    output,
-    priceInSats,
-    signedPsbt,
-    pubkey,
-    privkey,
-  });
+  try {
+    const signedEvent = await signNostrEvent({
+      inscriptionId,
+      output,
+      priceInSats,
+      signedPsbt,
+      pubkey,
+      privkey,
+    });
 
-  console.log("signedEvent:", JSON.stringify(signedEvent, null, 2));
-  const events = await publishEvent(signedEvent);
-  return events;
+    console.log("signedEvent:", JSON.stringify(signedEvent, null, 2));
+    const events = await publishEvent(signedEvent);
+    return events;
+  } catch (error) {
+    console.error("An error occurred in signAndBroadcastEvent", error);
+    return [];
+  }
 }
 
 // Function to publish the event to the Nostr network
@@ -125,7 +127,7 @@ const publishEvent = async (event: Event) => {
 
   const promises = RELAYS.map(
     (url) =>
-      new Promise((resolve) => {
+      new Promise((resolve, reject) => {
         try {
           const relay = relayInit(url);
           const timeout = 10000;
@@ -133,7 +135,7 @@ const publishEvent = async (event: Event) => {
           const timeoutAndClose = () => {
             console.error(`Timeout error: event ${event.id} relay ${url}`);
             relay.close();
-            resolve({ id: "" });
+            resolve({ id: "", url });
           };
 
           let timeoutCheck = setTimeout(timeoutAndClose, timeout);
@@ -147,7 +149,7 @@ const publishEvent = async (event: Event) => {
               console.info(`Event ${event.id} published to ${url}`);
               relay.close();
               clearTimeout(timeoutCheck);
-              resolve({ id: event.id });
+              resolve({ id: event.id, url });
             });
 
             pub.on("failed", (reason: Error) => {
@@ -156,7 +158,7 @@ const publishEvent = async (event: Event) => {
               );
               relay.close();
               clearTimeout(timeoutCheck);
-              resolve({ id: "" });
+              resolve({ id: "", url });
             });
           });
 
@@ -164,21 +166,29 @@ const publishEvent = async (event: Event) => {
             console.error(`Failed to connect to ${url}`);
             clearTimeout(timeoutCheck);
             relay.close();
-            resolve({ id: "" });
+            resolve({ id: "", url });
           });
 
-          return relay.connect();
+          relay.connect().catch((error) => {
+            console.error("An error occurred in relay.connect", url);
+            reject(error);
+          });
         } catch (error) {
           console.error("Failed to publish", error);
-          resolve({ id: "" });
+          reject(error); // This will handle any error that is not already handled
         }
       })
   );
 
   try {
-    const events: PublishedEvent[] = (await Promise.all(
-      promises
-    )) as PublishedEvent[];
+    const results = await Promise.allSettled(promises);
+
+    const events: PublishedEvent[] = results
+      .filter((result) => result.status === "fulfilled")
+      .map(
+        (result) => (result as PromiseFulfilledResult<PublishedEvent>).value
+      );
+
     console.log("events", events);
     return events;
   } catch (error) {

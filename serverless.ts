@@ -103,7 +103,7 @@ const serverlessConfiguration: AWSConfig = {
         name: "DutchAuctionStateMachine-${self:provider.stage}",
         definition: {
           Comment:
-            "A Step Function Machine to manage the Dutch Auction process.",
+            "A step function machine to manage the Dutch Auction process.",
           StartAt: "InitializeAuction",
           States: {
             InitializeAuction: {
@@ -123,6 +123,17 @@ const serverlessConfiguration: AWSConfig = {
               },
               ResultPath: "$",
               Next: "IsAuctionFinished",
+              // 'ResultSelector' is not supported by the Serverless Framework
+              //   Catch: [
+              //     {
+              //       ErrorEquals: ["States.ALL"],
+              //       ResultSelector: {
+              //         "error.$": "$",
+              //         "input.$": "$$.States.Task['updateAuctionStatus'].Input",
+              //       },
+              //       Next: "LogError",
+              //     },
+              //   ],
             },
             IsAuctionFinished: {
               Type: "Choice",
@@ -152,6 +163,20 @@ const serverlessConfiguration: AWSConfig = {
               },
               End: true,
             },
+            // LogError: {
+            //   Type: "Task",
+            //   Resource: {
+            //     "Fn::GetAtt": ["LogErrorLambdaFunction", "Arn"],
+            //   },
+            //   ResultPath: "$.errorInformation",
+            //   Next: "FailState",
+            // },
+            // FailState: {
+            //   Type: "Fail",
+            //   Cause:
+            //     "AWS Step Functions detected an error in the state machine definition. Please review the states to ensure they are defined correctly.",
+            //   Error: "InvalidStateDetected",
+            // },
           },
         },
       },

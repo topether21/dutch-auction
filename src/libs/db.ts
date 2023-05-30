@@ -112,13 +112,13 @@ const getAuction = async (auctionId: string) => {
   }
 };
 
-const finishAuction = async (auctionId: AuctionId) => {
+const finishAuction = async (auctionId: AuctionId, status?: string) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: { id: auctionId },
     UpdateExpression: "set #status = :status",
     ExpressionAttributeValues: {
-      ":status": "FINISHED",
+      ":status": status || "FINISHED",
     },
     ExpressionAttributeNames: {
       "#status": "status",

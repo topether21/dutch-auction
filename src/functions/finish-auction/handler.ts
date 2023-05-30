@@ -15,7 +15,6 @@ export async function finishAuction(event: EventType) {
     auction.status !== "SPENT" &&
     auction.status !== "STOPPED"
   ) {
-    auction.status = "FINISHED";
     await dbFinishAuction(id);
   }
   console.log(`Auction ${id} status set to FINISHED`);
