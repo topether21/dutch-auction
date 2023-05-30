@@ -58,9 +58,12 @@ export const createAuction = async (event: APIGatewayEvent) => {
     if (auctions.length > 0 && auctions.some((a) => a.status === "RUNNING")) {
       return errorAuctionIsRunning();
     }
-    await saveAuction({ ...auction, startTime });
+    const now = new Date().getTime();
+    const validStartTime =
+      startTime && startTime > now ? startTime : now + 5000; // if the time is invalid use now plus 5 seconds
+    const scheduledTime = new Date(validStartTime).toISOString();
+    await saveAuction({ ...auction, startTime: validStartTime, scheduledTime });
     const time = new Date(startTime);
-    console.log("schedule", { startTime, time, date: time.getTime() });
     const command = new PutEventsCommand({
       Entries: [
         {

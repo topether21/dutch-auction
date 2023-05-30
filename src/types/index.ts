@@ -9,6 +9,7 @@ export type AuctionStatus =
 
 export interface Auction {
   startTime: number;
+  scheduledTime: string;
   metadata: AuctionMetadata[];
   inscriptionId: string;
   nostrAddress: string;

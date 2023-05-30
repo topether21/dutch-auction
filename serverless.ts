@@ -111,6 +111,11 @@ const serverlessConfiguration: AWSConfig = {
             InitializeAuction: {
               Type: "Pass",
               ResultPath: "$",
+              Next: "WaitToStart",
+            },
+            WaitToStart: {
+              Type: "Wait",
+              TimestampPath: "$.scheduledTime", // 'scheduledTime' should be ISO8601 format
               Next: "updateAuctionStatus",
             },
             updateAuctionStatus: {
