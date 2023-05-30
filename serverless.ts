@@ -4,7 +4,6 @@ import { auctionsByInscriptionId } from "@functions/auctions-by-inscription-id";
 import { auction } from "@functions/auction";
 import { getAuctionsByAddress } from "@functions/auctions-by-address";
 import { auctions } from "@functions/auctions";
-import { startAuction } from "@functions/start-auction";
 import { updateAuctionStatus } from "@functions/update-auction-status";
 import { finishAuction } from "@functions/finish-auction";
 import { deleteAuctionsByInscriptionId } from "@functions/delete-auctions-by-inscription-id";
@@ -93,7 +92,6 @@ const serverlessConfiguration: AWSConfig = {
     auction,
     getAuctionsByAddress,
     auctions,
-    startAuction,
     updateAuctionStatus,
     finishAuction,
     deleteAuctionsByInscriptionId,

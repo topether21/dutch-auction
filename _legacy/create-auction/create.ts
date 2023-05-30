@@ -1,4 +1,8 @@
 import { v4 } from "uuid";
+import {
+  PutEventsCommand,
+  EventBridgeClient,
+} from "@aws-sdk/client-eventbridge";
 
 import { isSpent } from "@libs/inscriptions";
 import { getAuctionsByInscriptionId, saveAuction } from "@libs/db";
@@ -12,7 +16,8 @@ import {
 } from "@functions/errors";
 import { APIGatewayEvent } from "aws-lambda";
 import { AuctionMetadata, AuctionStatus } from "@types";
-import { startStateMachine } from "@functions/start-state-machine";
+
+const eventBridge = new EventBridgeClient({});
 
 export const createAuction = async (event: APIGatewayEvent) => {
   parseEventInput(event);
@@ -57,13 +62,21 @@ export const createAuction = async (event: APIGatewayEvent) => {
     const validStartTime =
       startTime && startTime > now ? startTime : now + 5000; // if the time is invalid use now plus 5 seconds
     const scheduledTime = new Date(validStartTime).toISOString();
-    const finalAuction = {
-      ...auction,
-      startTime: validStartTime,
-      scheduledTime,
-    };
-    await saveAuction(finalAuction);
-    await startStateMachine(finalAuction);
+    await saveAuction({ ...auction, startTime: validStartTime, scheduledTime });
+    const time = new Date(startTime);
+    const command = new PutEventsCommand({
+      Entries: [
+        {
+          Source: "dutch-auction.start",
+          DetailType: "AuctionScheduled",
+          Detail: JSON.stringify({ id }),
+          EventBusName: "default",
+          Time: time, // milliseconds
+        },
+      ],
+    });
+    const eventResult = await eventBridge.send(command);
+    console.log("eventResult", eventResult);
     return createHttpResponse(200, auction);
   } catch (error) {
     console.error("Error in createAuction:", error);

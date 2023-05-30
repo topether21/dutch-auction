@@ -2,8 +2,17 @@ import "websocket-polyfill";
 import { getEventHash, relayInit, signEvent, Event } from "nostr-tools";
 
 const NOSTR_KIND_INSCRIPTION = 802;
-const NOSTR_RELAY_URL = "wss://relay.deezy.io";
-const RELAYS = [NOSTR_RELAY_URL];
+const RELAYS = [
+  "wss://relay.deezy.io",
+  "wss://relay.walletofsatoshi.com",
+  "wss://relay.damus.io",
+  "wss://nostr-pub.wellorder.net",
+  "wss://nostr.bitcoiner.social",
+  "wss://nostr.onsats.org",
+  "wss://nostr-relay.wlvs.space",
+  "wss://nostr-pub.semisol.dev",
+  "wss://relay.nostr.info",
+];
 
 interface SellEventParams {
   inscriptionId: string;
