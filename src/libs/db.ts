@@ -231,6 +231,23 @@ const deleteAuctionsByInscriptionId = async (inscriptionId: string) => {
   }
 };
 
+const deleteAuctionById = async (auctionId: string) => {
+  const params = {
+    TableName: process.env.DYNAMODB_TABLE,
+    Key: {
+      id: { S: auctionId },
+    },
+  };
+  const command = new DeleteItemCommand(params);
+  try {
+    await client.send(command);
+    console.log(`Deleted record with auctionId: ${auctionId}`);
+  } catch (error) {
+    console.error(`Error deleting auction by auctionId: ${error}`);
+    throw error;
+  }
+};
+
 export {
   saveAuction,
   getAuction,
@@ -242,4 +259,5 @@ export {
   listAuctions,
   finishAuction,
   deleteAuctionsByInscriptionId,
+  deleteAuctionById,
 };

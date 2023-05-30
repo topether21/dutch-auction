@@ -1,8 +1,7 @@
 import type { AWS } from "@serverless/typescript";
 
-import { createAuction } from "@functions/create-auction";
 import { auctionsByInscriptionId } from "@functions/auctions-by-inscription-id";
-import { stopAuction } from "@functions/stop-auction";
+import { auction } from "@functions/auction";
 import { getAuctionsByAddress } from "@functions/auctions-by-address";
 import { auctions } from "@functions/auctions";
 import { startAuction } from "@functions/start-auction";
@@ -15,6 +14,7 @@ type AWSConfig = AWS & {
 };
 
 const serverlessConfiguration: AWSConfig = {
+  configValidationMode: "warn",
   plugins: [
     "serverless-step-functions",
     "serverless-esbuild",
@@ -90,15 +90,14 @@ const serverlessConfiguration: AWSConfig = {
     },
   },
   functions: {
-    createAuction,
-    auctionsByInscriptionId,
-    stopAuction,
+    auction,
     getAuctionsByAddress,
     auctions,
     startAuction,
     updateAuctionStatus,
     finishAuction,
     deleteAuctionsByInscriptionId,
+    auctionsByInscriptionId,
   },
   stepFunctions: {
     stateMachines: {

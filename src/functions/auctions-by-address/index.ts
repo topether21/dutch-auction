@@ -6,7 +6,7 @@ export const getAuctionsByAddress = {
     {
       http: {
         method: "get",
-        path: "/auctions/address/{address}",
+        path: "/v1/auctions/address/{address}",
         cors: true,
         request: {
           parameters: {

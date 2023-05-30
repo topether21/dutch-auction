@@ -6,7 +6,7 @@ export const auctions = {
     {
       http: {
         method: "get",
-        path: "auctions",
+        path: "/v1/auctions",
         cors: true,
       },
     },

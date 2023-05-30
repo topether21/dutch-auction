@@ -6,7 +6,7 @@ export const deleteAuctionsByInscriptionId = {
     {
       http: {
         method: "get",
-        path: "/delete/{inscriptionId}",
+        path: "/debug/delete/{inscriptionId}",
         cors: true,
         request: {
           parameters: {

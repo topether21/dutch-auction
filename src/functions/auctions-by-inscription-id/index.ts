@@ -6,7 +6,7 @@ export const auctionsByInscriptionId = {
     {
       http: {
         method: "get",
-        path: "/inscription/{inscriptionId}",
+        path: "/v1/auctions/inscription/{inscriptionId}",
         cors: true,
         request: {
           parameters: {

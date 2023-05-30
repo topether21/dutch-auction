@@ -8,7 +8,7 @@ import { isSpent } from "@libs/inscriptions";
 import { getAuctionsByInscriptionId, saveAuction } from "@libs/db";
 import { createHttpResponse, parseEventInput } from "@libs/api-gateway";
 
-import { CreateAuction } from "./schema";
+import { CreateAuction } from "./types";
 import {
   errorAuctionIsRunning,
   errorAuctionIsSpent,
@@ -22,7 +22,7 @@ const eventBridge = new EventBridgeClient({});
 export const createAuction = async (event: APIGatewayEvent) => {
   parseEventInput(event);
   const {
-    startTime, // IMPORTANT: Unix timestamps
+    startTime, // IMPORTANT: milliseconds
     decreaseAmount,
     timeBetweenEachDecrease,
     initialPrice,
@@ -59,6 +59,8 @@ export const createAuction = async (event: APIGatewayEvent) => {
       return errorAuctionIsRunning();
     }
     await saveAuction({ ...auction, startTime });
+    const time = new Date(startTime);
+    console.log("schedule", { startTime, time, date: time.getTime() });
     const command = new PutEventsCommand({
       Entries: [
         {
@@ -66,7 +68,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
           DetailType: "AuctionScheduled",
           Detail: JSON.stringify({ id }),
           EventBusName: "default",
-          Time: new Date(startTime * 1000), // milliseconds
+          Time: time, // milliseconds
         },
       ],
     });
