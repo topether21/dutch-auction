@@ -7,6 +7,7 @@ import { auctions } from "@functions/auctions";
 import { updateAuctionStatus } from "@functions/update-auction-status";
 import { finishAuction } from "@functions/finish-auction";
 import { deleteAuctionsByInscriptionId } from "@functions/delete-auctions-by-inscription-id";
+import { version } from "@functions/version";
 
 type AWSConfig = AWS & {
   stepFunctions?: object;
@@ -89,6 +90,7 @@ const serverlessConfiguration: AWSConfig = {
     },
   },
   functions: {
+    version,
     auction,
     getAuctionsByAddress,
     auctions,
