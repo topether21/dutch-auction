@@ -14,10 +14,21 @@ import { APIGatewayEvent } from "aws-lambda";
 import { AuctionMetadata, AuctionStatus } from "@types";
 import { startStateMachine } from "@functions/start-state-machine";
 
+function toMilliseconds(timestamp: number) {
+  // if timestamp is in seconds
+  if (timestamp < 10000000000) {
+    return timestamp * 1000;
+  }
+  // if timestamp is in milliseconds
+  else {
+    return timestamp;
+  }
+}
+
 export const createAuction = async (event: APIGatewayEvent) => {
   parseEventInput(event);
   const {
-    startTime, // IMPORTANT: milliseconds
+    startTime: originalStartTime, // IMPORTANT: milliseconds or seconds
     decreaseAmount,
     timeBetweenEachDecrease,
     initialPrice,
@@ -27,6 +38,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
     inscriptionId,
     output,
   } = event.body as unknown as CreateAuction;
+  const startTime = toMilliseconds(originalStartTime);
   const id = v4();
   const auction = {
     id,
@@ -36,7 +48,12 @@ export const createAuction = async (event: APIGatewayEvent) => {
     initialPrice,
     reservePrice,
     metadata: metadata.map(
-      (m) => ({ ...(m as {}), id: v4() } as AuctionMetadata)
+      (m) =>
+        ({
+          ...(m as {}),
+          id: v4(),
+          scheduledTime: toMilliseconds(m.scheduledTime),
+        } as AuctionMetadata)
     ),
     currentPrice: initialPrice,
     status: "PENDING" as AuctionStatus,
