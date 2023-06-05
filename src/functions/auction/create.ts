@@ -23,7 +23,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
     initialPrice,
     reservePrice,
     metadata,
-    nostrAddress,
+    btcAddress,
     inscriptionId,
     output,
   } = event.body as unknown as CreateAuction;
@@ -40,7 +40,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
     ),
     currentPrice: initialPrice,
     status: "PENDING" as AuctionStatus,
-    nostrAddress,
+    btcAddress,
     inscriptionId,
     output,
   };

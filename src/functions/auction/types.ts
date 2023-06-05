@@ -5,7 +5,7 @@ export interface CreateAuction {
   initialPrice: number;
   reservePrice: number;
   metadata: Metadata[];
-  nostrAddress: string;
+  btcAddress: string;
   output: string;
   inscriptionId: string;
 }

@@ -6,7 +6,6 @@ import { getAuctionsByAddress } from "@functions/auctions-by-address";
 import { auctions } from "@functions/auctions";
 import { updateAuctionStatus } from "@functions/update-auction-status";
 import { finishAuction } from "@functions/finish-auction";
-import { deleteAuctionsByInscriptionId } from "@functions/delete-auctions-by-inscription-id";
 import { version } from "@functions/version";
 
 type AWSConfig = AWS & {
@@ -20,7 +19,6 @@ const serverlessConfiguration: AWSConfig = {
     "serverless-esbuild",
     "serverless-ssm-fetch",
     "serverless-offline",
-    "serverless-openapi-documenter",
   ],
   service: "dutch-auction",
   frameworkVersion: "3",
@@ -58,18 +56,22 @@ const serverlessConfiguration: AWSConfig = {
           },
           {
             Effect: "Allow",
-            Action: ["events:PutEvents"],
-            Resource: "*",
-          },
-          {
-            Effect: "Allow",
             Action: ["states:StartExecution"],
-            Resource: "*",
+            Resource:
+              "arn:aws:states:${self:provider.region}:${self:custom.awsAccountId}:stateMachine:DutchAuctionStateMachine-${self:provider.stage}",
           },
           {
             Effect: "Allow",
             Action: ["lambda:InvokeFunction"],
-            Resource: "*",
+            Resource: [
+              "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:finishAuction",
+              "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:getAuctionsByAddress",
+              "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:auctionsByInscriptionId",
+              "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:auctions",
+              "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:version",
+              "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:auction",
+              "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:updateAuctionStatus",
+            ],
           },
           {
             Effect: "Allow",
@@ -78,12 +80,15 @@ const serverlessConfiguration: AWSConfig = {
               "logs:CreateLogStream",
               "logs:PutLogEvents",
             ],
-            Resource: "*",
+            Resource:
+              "arn:aws:logs:${self:provider.region}:${self:custom.awsAccountId}:log-group:/aws/lambda/${self:service}-${self:provider.stage}-auction:*",
           },
           {
             Effect: "Allow",
             Action: ["ssm:Describe*", "ssm:Get*", "ssm:List*"],
-            Resource: "*",
+            Resource: [
+              "arn:aws:ssm:${self:provider.region}:${self:custom.awsAccountId}:parameter/NOSTR_PRIVATE_KEY",
+            ],
           },
         ],
       },
@@ -96,7 +101,6 @@ const serverlessConfiguration: AWSConfig = {
     auctions,
     updateAuctionStatus,
     finishAuction,
-    deleteAuctionsByInscriptionId,
     auctionsByInscriptionId,
   },
   stepFunctions: {
@@ -125,17 +129,6 @@ const serverlessConfiguration: AWSConfig = {
               },
               ResultPath: "$",
               Next: "IsAuctionFinished",
-              // 'ResultSelector' is not supported by the Serverless Framework
-              //   Catch: [
-              //     {
-              //       ErrorEquals: ["States.ALL"],
-              //       ResultSelector: {
-              //         "error.$": "$",
-              //         "input.$": "$$.States.Task['updateAuctionStatus'].Input",
-              //       },
-              //       Next: "LogError",
-              //     },
-              //   ],
             },
             IsAuctionFinished: {
               Type: "Choice",
@@ -165,20 +158,6 @@ const serverlessConfiguration: AWSConfig = {
               },
               End: true,
             },
-            // LogError: {
-            //   Type: "Task",
-            //   Resource: {
-            //     "Fn::GetAtt": ["LogErrorLambdaFunction", "Arn"],
-            //   },
-            //   ResultPath: "$.errorInformation",
-            //   Next: "FailState",
-            // },
-            // FailState: {
-            //   Type: "Fail",
-            //   Cause:
-            //     "AWS Step Functions detected an error in the state machine definition. Please review the states to ensure they are defined correctly.",
-            //   Error: "InvalidStateDetected",
-            // },
           },
         },
       },
@@ -196,7 +175,7 @@ const serverlessConfiguration: AWSConfig = {
               AttributeType: "S",
             },
             {
-              AttributeName: "nostrAddress",
+              AttributeName: "btcAddress",
               AttributeType: "S",
             },
             {
@@ -216,10 +195,10 @@ const serverlessConfiguration: AWSConfig = {
           },
           GlobalSecondaryIndexes: [
             {
-              IndexName: "nostrAddress-index",
+              IndexName: "btcAddress-index",
               KeySchema: [
                 {
-                  AttributeName: "nostrAddress",
+                  AttributeName: "btcAddress",
                   KeyType: "HASH",
                 },
               ],
@@ -253,6 +232,7 @@ const serverlessConfiguration: AWSConfig = {
     },
   },
   custom: {
+    awsAccountId: "${aws:accountId}",
     esbuild: {
       bundle: true,
       minify: true,
