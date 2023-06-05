@@ -17,17 +17,17 @@ function removeUndefinedValues(obj: any) {
   }
 }
 
-const getAuctionsByNostrAddress = async (nostrAddress: string) => {
-  console.log(`nostrAddress: ${nostrAddress}, type: ${typeof nostrAddress}`);
+const getAuctionsByNostrAddress = async (btcAddress: string) => {
+  console.log(`btcAddress: ${btcAddress}, type: ${typeof btcAddress}`);
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
-    IndexName: "nostrAddress-index",
+    IndexName: "btcAddress-index",
     KeyConditionExpression: "#na = :na",
     ExpressionAttributeNames: {
-      "#na": "nostrAddress",
+      "#na": "btcAddress",
     },
     ExpressionAttributeValues: {
-      ":na": nostrAddress,
+      ":na": btcAddress,
     },
   };
 
@@ -35,7 +35,7 @@ const getAuctionsByNostrAddress = async (nostrAddress: string) => {
     const { Items } = await client.query(params);
     return Items as Auction[];
   } catch (error) {
-    console.error(`Error getting auctions by nostrAddress: ${error}`);
+    console.error(`Error getting auctions by btcAddress: ${error}`);
     throw error;
   }
 };
@@ -58,15 +58,15 @@ const getAuctionsByInscriptionId = async (
     const { Items } = await client.query(params);
     return Items as Auction[];
   } catch (error) {
-    console.error(`Error getting auctions by nostrAddress: ${error}`);
+    console.error(`Error getting auctions by btcAddress: ${error}`);
     throw error;
   }
 };
 
 const saveAuction = async (auction: Auction) => {
   removeUndefinedValues(auction);
-  if (typeof auction.nostrAddress !== "string") {
-    throw new Error("nostrAddress must be a string");
+  if (typeof auction.btcAddress !== "string") {
+    throw new Error("btcAddress must be a string");
   }
   const params = {
     TableName: process.env.DYNAMODB_TABLE,

@@ -12,7 +12,7 @@ export interface Auction {
   scheduledTime: string;
   metadata: AuctionMetadata[];
   inscriptionId: string;
-  nostrAddress: string;
+  btcAddress: string;
   output: string;
   status: AuctionStatus;
   decreaseAmount: number;
