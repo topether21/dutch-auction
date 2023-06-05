@@ -232,6 +232,7 @@ const serverlessConfiguration: AWSConfig = {
     },
   },
   custom: {
+    awsAccountId: "${aws:accountId}",
     esbuild: {
       bundle: true,
       minify: true,
