@@ -58,16 +58,6 @@ const serverlessConfiguration: AWSConfig = {
           },
           {
             Effect: "Allow",
-            Action: ["events:PutEvents"],
-            Resource: "*",
-          },
-          {
-            Effect: "Allow",
-            Action: ["states:StartExecution"],
-            Resource: "*",
-          },
-          {
-            Effect: "Allow",
             Action: ["lambda:InvokeFunction"],
             Resource: "*",
           },
@@ -125,17 +115,6 @@ const serverlessConfiguration: AWSConfig = {
               },
               ResultPath: "$",
               Next: "IsAuctionFinished",
-              // 'ResultSelector' is not supported by the Serverless Framework
-              //   Catch: [
-              //     {
-              //       ErrorEquals: ["States.ALL"],
-              //       ResultSelector: {
-              //         "error.$": "$",
-              //         "input.$": "$$.States.Task['updateAuctionStatus'].Input",
-              //       },
-              //       Next: "LogError",
-              //     },
-              //   ],
             },
             IsAuctionFinished: {
               Type: "Choice",
@@ -165,20 +144,6 @@ const serverlessConfiguration: AWSConfig = {
               },
               End: true,
             },
-            // LogError: {
-            //   Type: "Task",
-            //   Resource: {
-            //     "Fn::GetAtt": ["LogErrorLambdaFunction", "Arn"],
-            //   },
-            //   ResultPath: "$.errorInformation",
-            //   Next: "FailState",
-            // },
-            // FailState: {
-            //   Type: "Fail",
-            //   Cause:
-            //     "AWS Step Functions detected an error in the state machine definition. Please review the states to ensure they are defined correctly.",
-            //   Error: "InvalidStateDetected",
-            // },
           },
         },
       },
