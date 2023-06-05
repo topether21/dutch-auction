@@ -50,27 +50,56 @@ const serverlessConfiguration: AWSConfig = {
               "dynamodb:DeleteItem",
             ],
             Resource: [
-              "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}",
-              "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}/index/*",
+              {
+                "Fn::Sub":
+                  "arn:aws:dynamodb:${opt:region, self:provider.region}:${AWS::AccountId}:table/${self:provider.environment.DYNAMODB_TABLE}",
+              },
+              {
+                "Fn::Sub":
+                  "arn:aws:dynamodb:${opt:region, self:provider.region}:${AWS::AccountId}:table/${self:provider.environment.DYNAMODB_TABLE}/index/*",
+              },
             ],
           },
           {
             Effect: "Allow",
             Action: ["states:StartExecution"],
-            Resource:
-              "arn:aws:states:${self:provider.region}:${aws:accountId}:stateMachine:DutchAuctionStateMachine-${self:provider.stage}",
+            Resource: {
+              "Fn::Sub":
+                "arn:aws:states:${self:provider.region}:${AWS::AccountId}:stateMachine:DutchAuctionStateMachine-${self:provider.stage}",
+            },
           },
           {
             Effect: "Allow",
             Action: ["lambda:InvokeFunction"],
             Resource: [
-              "arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-finishAuction",
-              "arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-getAuctionsByAddress",
-              "arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-auctionsByInscriptionId",
-              "arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-auctions",
-              "arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-version",
-              "arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-auction",
-              "arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-updateAuctionStatus",
+              {
+                "Fn::Sub":
+                  "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-finishAuction",
+              },
+              {
+                "Fn::Sub":
+                  "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-getAuctionsByAddress",
+              },
+              {
+                "Fn::Sub":
+                  "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-auctionsByInscriptionId",
+              },
+              {
+                "Fn::Sub":
+                  "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-auctions",
+              },
+              {
+                "Fn::Sub":
+                  "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-version",
+              },
+              {
+                "Fn::Sub":
+                  "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-auction",
+              },
+              {
+                "Fn::Sub":
+                  "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-updateAuctionStatus",
+              },
             ],
           },
           {
@@ -80,14 +109,19 @@ const serverlessConfiguration: AWSConfig = {
               "logs:CreateLogStream",
               "logs:PutLogEvents",
             ],
-            Resource:
-              "arn:aws:logs:${self:provider.region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${self:provider.stage}-auction:*",
+            Resource: {
+              "Fn::Sub":
+                "arn:aws:logs:${self:provider.region}:${AWS::AccountId}:log-group:/aws/lambda/${self:service}-${self:provider.stage}-auction:*",
+            },
           },
           {
             Effect: "Allow",
             Action: ["ssm:Describe*", "ssm:Get*", "ssm:List*"],
             Resource: [
-              "arn:aws:ssm:${self:provider.region}:${aws:accountId}:parameter/NOSTR_PRIVATE_KEY",
+              {
+                "Fn::Sub":
+                  "arn:aws:ssm:${self:provider.region}:${AWS::AccountId}:parameter/NOSTR_PRIVATE_KEY",
+              },
             ],
           },
         ],
@@ -232,7 +266,6 @@ const serverlessConfiguration: AWSConfig = {
     },
   },
   custom: {
-    awsAccountId: "${aws:accountId}",
     esbuild: {
       bundle: true,
       minify: true,
