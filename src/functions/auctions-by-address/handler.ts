@@ -1,4 +1,5 @@
-import { errorAuctionNotFound, internalServerError } from "@functions/errors";
+import { internalServerError } from "@functions/errors";
+import { checkAuctionStatus } from "@functions/shared";
 import { createHttpResponse } from "@libs/api-gateway";
 import { getAuctionsByNostrAddress } from "@libs/db";
 import { APIGatewayEvent } from "aws-lambda";
@@ -7,11 +8,9 @@ export const getAuctionsByAddress = async (event: APIGatewayEvent) => {
   const address = event.pathParameters?.address;
   try {
     if (!address) throw new Error("No address provided");
-    const auction = await getAuctionsByNostrAddress(address);
-    if (!auction) {
-      return errorAuctionNotFound();
-    }
-    return createHttpResponse(200, auction);
+    const auctions = await getAuctionsByNostrAddress(address);
+    await checkAuctionStatus(auctions);
+    return createHttpResponse(200, auctions);
   } catch (error) {
     console.error(error);
     return internalServerError();
