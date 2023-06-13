@@ -4,15 +4,16 @@ import { isSpent } from "@libs/inscriptions";
 import { getAuctionsByInscriptionId, saveAuction } from "@libs/db";
 import { createHttpResponse, parseEventInput } from "@libs/api-gateway";
 
-import { CreateAuction } from "./types";
 import {
   errorAuctionIsRunning,
   errorAuctionIsSpent,
+  errorInvalidInput,
   internalServerError,
 } from "@functions/errors";
 import { APIGatewayEvent } from "aws-lambda";
 import { AuctionMetadata, AuctionStatus } from "@types";
 import { startStateMachine } from "@functions/start-state-machine";
+import { CreateAuctionSchema } from "./schema";
 
 function toMilliseconds(timestamp: number) {
   // if timestamp is in seconds
@@ -27,6 +28,12 @@ function toMilliseconds(timestamp: number) {
 
 export const createAuction = async (event: APIGatewayEvent) => {
   parseEventInput(event);
+  const parsedEventBody = CreateAuctionSchema.safeParse(event.body);
+  if (!parsedEventBody.success) {
+    console.error(parsedEventBody.error);
+    return errorInvalidInput(parsedEventBody.error.message);
+  }
+
   const {
     startTime: originalStartTime, // IMPORTANT: milliseconds or seconds
     decreaseAmount,
@@ -37,7 +44,8 @@ export const createAuction = async (event: APIGatewayEvent) => {
     btcAddress,
     inscriptionId,
     output,
-  } = event.body as unknown as CreateAuction;
+  } = parsedEventBody.data;
+
   const startTime = toMilliseconds(originalStartTime);
   const id = v4();
   const auction = {

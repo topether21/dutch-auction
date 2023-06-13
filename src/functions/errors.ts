@@ -6,6 +6,12 @@ export const errorAuctionNotFound = () =>
     message: "Auctions not found.",
   });
 
+export const errorInvalidInput = (message: string) =>
+  createErrorResponse({
+    statusCode: 404,
+    message,
+  });
+
 export const errorAuctionIsSpent = () =>
   createErrorResponse({
     statusCode: 404,
