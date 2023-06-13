@@ -31,7 +31,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
   const parsedEventBody = CreateAuctionSchema.safeParse(event.body);
   if (!parsedEventBody.success) {
     console.error(parsedEventBody.error);
-    return errorInvalidInput(parsedEventBody.error.message);
+    return errorInvalidInput(parsedEventBody.error);
   }
 
   const {

@@ -44,6 +44,7 @@
     "nostr-tools": "^1.11.1",
     "uuid": "^9.0.0",
     "websocket-polyfill": "^0.0.3",
-    "zod": "^3.21.4"
+    "zod": "^3.21.4",
+    "zod-error": "^1.5.0"
   }
 }

@@ -1,4 +1,14 @@
 import { createErrorResponse } from "@libs/api-gateway";
+import { ZodError } from "zod";
+import { generateErrorMessage, ErrorMessageOptions } from "zod-error";
+
+const options: ErrorMessageOptions = {
+  delimiter: {
+    error: " 🔥 ",
+  },
+  transform: ({ errorMessage, index }) =>
+    `Error #${index + 1}: ${errorMessage}`,
+};
 
 export const errorAuctionNotFound = () =>
   createErrorResponse({
@@ -6,10 +16,10 @@ export const errorAuctionNotFound = () =>
     message: "Auctions not found.",
   });
 
-export const errorInvalidInput = (message: string) =>
+export const errorInvalidInput = (error: ZodError) =>
   createErrorResponse({
     statusCode: 404,
-    message,
+    message: generateErrorMessage(error.issues, options),
   });
 
 export const errorAuctionIsSpent = () =>
