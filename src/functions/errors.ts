@@ -18,19 +18,19 @@ export const errorAuctionNotFound = () =>
 
 export const errorInvalidInput = (error: ZodError) =>
   createErrorResponse({
-    statusCode: 404,
+    statusCode: 422,
     message: generateErrorMessage(error.issues, options),
   });
 
 export const errorAuctionIsSpent = () =>
   createErrorResponse({
-    statusCode: 404,
+    statusCode: 400,
     message: "Inscription is spent.",
   });
 
 export const errorAuctionIsRunning = () =>
   createErrorResponse({
-    statusCode: 404,
+    statusCode: 400,
     message: "An auction is running for this inscription.",
   });
 
