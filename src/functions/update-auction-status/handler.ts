@@ -65,7 +65,7 @@ export async function updateAuctionStatus(event: Auction) {
       // skip current round
       return {
         ...deepCopyStateMachineAuction, // use original auction data
-        timeBetweenEachDecrease: 60, // wait 1 minute before retrying
+        secondsBetweenEachDecrease: 60, // wait 1 minute before retrying
         auctionFinished: false,
       };
     }

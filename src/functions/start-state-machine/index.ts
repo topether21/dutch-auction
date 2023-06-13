@@ -11,9 +11,9 @@ export async function startStateMachine(auction: Auction) {
     input: JSON.stringify({
       id: auction.id,
       startTime: auction.startTime,
-      scheduledTime: auction.scheduledTime,
+      scheduledISODate: auction.scheduledISODate,
       decreaseAmount: auction.decreaseAmount,
-      timeBetweenEachDecrease: auction.timeBetweenEachDecrease,
+      secondsBetweenEachDecrease: auction.secondsBetweenEachDecrease,
       initialPrice: auction.initialPrice,
       reservePrice: auction.reservePrice,
       currentPrice: auction.initialPrice,

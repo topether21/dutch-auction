@@ -153,7 +153,7 @@ const serverlessConfiguration: AWSConfig = {
             },
             WaitToStart: {
               Type: "Wait",
-              TimestampPath: "$.scheduledTime", // 'scheduledTime' should be ISO8601 format
+              TimestampPath: "$.scheduledISODate", // 'scheduledISODate' should be ISO8601 format
               Next: "updateAuctionStatus",
             },
             updateAuctionStatus: {
@@ -182,7 +182,7 @@ const serverlessConfiguration: AWSConfig = {
             },
             WaitRoundDuration: {
               Type: "Wait",
-              SecondsPath: "$.timeBetweenEachDecrease",
+              SecondsPath: "$.secondsBetweenEachDecrease",
               Next: "updateAuctionStatus",
             },
             AuctionFinished: {

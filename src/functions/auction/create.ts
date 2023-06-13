@@ -11,7 +11,7 @@ import {
   internalServerError,
 } from "@functions/errors";
 import { APIGatewayEvent } from "aws-lambda";
-import { AuctionMetadata, AuctionStatus } from "@types";
+import { Auction, AuctionMetadata, AuctionStatus } from "@types";
 import { startStateMachine } from "@functions/start-state-machine";
 import { CreateAuctionSchema } from "./schema";
 
@@ -37,7 +37,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
   const {
     startTime: originalStartTime, // IMPORTANT: milliseconds or seconds
     decreaseAmount,
-    timeBetweenEachDecrease,
+    secondsBetweenEachDecrease, // IMPORTANT: seconds
     initialPrice,
     reservePrice,
     metadata,
@@ -48,21 +48,30 @@ export const createAuction = async (event: APIGatewayEvent) => {
 
   const startTime = toMilliseconds(originalStartTime);
   const id = v4();
-  const auction = {
+  const now = new Date().getTime();
+  const validStartTime = startTime && startTime > now ? startTime : now + 5000; // if the time is invalid use now plus 5 seconds
+  const scheduledISODate = new Date(validStartTime).toISOString();
+
+  const auction: Auction = {
     id,
-    startTime,
+    startTime: validStartTime,
+    scheduledISODate,
     decreaseAmount,
-    timeBetweenEachDecrease,
+    secondsBetweenEachDecrease,
     initialPrice,
     reservePrice,
-    metadata: metadata.map(
-      (m) =>
-        ({
-          ...(m as {}),
-          id: v4(),
-          scheduledTime: toMilliseconds(m.scheduledTime),
-        } as AuctionMetadata)
-    ),
+    metadata: metadata.map((m, index) => {
+      const scheduledTime =
+        validStartTime + auction.secondsBetweenEachDecrease * 1000 * index;
+      return {
+        ...(m as {}),
+        id: v4(),
+        index,
+        isLastEvent: index === metadata.length - 1,
+        scheduledTime,
+        endTime: scheduledTime + auction.secondsBetweenEachDecrease * 1000,
+      } as AuctionMetadata;
+    }),
     currentPrice: initialPrice,
     status: "PENDING" as AuctionStatus,
     btcAddress,
@@ -78,17 +87,8 @@ export const createAuction = async (event: APIGatewayEvent) => {
     if (auctions.length > 0 && auctions.some((a) => a.status === "RUNNING")) {
       return errorAuctionIsRunning();
     }
-    const now = new Date().getTime();
-    const validStartTime =
-      startTime && startTime > now ? startTime : now + 5000; // if the time is invalid use now plus 5 seconds
-    const scheduledTime = new Date(validStartTime).toISOString();
-    const finalAuction = {
-      ...auction,
-      startTime: validStartTime,
-      scheduledTime,
-    };
-    await saveAuction(finalAuction);
-    await startStateMachine(finalAuction);
+    await saveAuction(auction);
+    await startStateMachine(auction);
     return createHttpResponse(200, auction);
   } catch (error) {
     console.error("Error in createAuction:", error);

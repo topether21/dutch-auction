@@ -9,7 +9,7 @@ export type AuctionStatus =
 
 export interface Auction {
   startTime: number;
-  scheduledTime: string;
+  scheduledISODate: string;
   metadata: AuctionMetadata[];
   inscriptionId: string;
   btcAddress: string;
@@ -19,14 +19,17 @@ export interface Auction {
   id: AuctionId;
   reservePrice: number;
   currentPrice: number;
-  timeBetweenEachDecrease: number;
+  secondsBetweenEachDecrease: number;
   initialPrice: number;
 }
 
 export interface AuctionMetadata {
   scheduledTime: number;
+  endTime: number;
   id: string;
   nostrEventId?: string;
   price: number;
   signedPsbt: string;
+  index: number;
+  isLastEvent: boolean;
 }

@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 const AuctionMetadataSchema = z.object({
-  scheduledTime: z.number(),
   price: z.number(),
   signedPsbt: z.string(),
 });
@@ -9,7 +8,7 @@ const AuctionMetadataSchema = z.object({
 export const CreateAuctionSchema = z.object({
   startTime: z.number(),
   decreaseAmount: z.number(),
-  timeBetweenEachDecrease: z.number(),
+  secondsBetweenEachDecrease: z.number(),
   initialPrice: z.number(),
   reservePrice: z.number(),
   metadata: z.array(AuctionMetadataSchema),
