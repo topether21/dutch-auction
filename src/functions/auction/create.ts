@@ -62,14 +62,14 @@ export const createAuction = async (event: APIGatewayEvent) => {
     reservePrice,
     metadata: metadata.map((m, index) => {
       const scheduledTime =
-        validStartTime + auction.secondsBetweenEachDecrease * 1000 * index;
+        validStartTime + secondsBetweenEachDecrease * 1000 * index;
       return {
         ...(m as {}),
         id: v4(),
         index,
         isLastEvent: index === metadata.length - 1,
         scheduledTime,
-        endTime: scheduledTime + auction.secondsBetweenEachDecrease * 1000,
+        endTime: scheduledTime + secondsBetweenEachDecrease * 1000,
       } as AuctionMetadata;
     }),
     currentPrice: initialPrice,

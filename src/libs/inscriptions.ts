@@ -5,6 +5,10 @@ const MEMPOOL_API_URL = TESTNET
   ? "https://mempool.space/testnet"
   : "https://mempool.deezy.io";
 
+const MEMPOOL_API_URL_FALLBACK = TESTNET
+  ? "https://mempool.space/testnet"
+  : "https://mempool.space";
+
 const config = { MEMPOOL_API_URL };
 
 // https://mempool.deezy.io/api/tx/29a3e9a9d494e01c07e67e9cf9e33b96d4d4b404bab5293ea25b3ffd10d7d46d/outspend/0
@@ -28,9 +32,20 @@ const config = { MEMPOOL_API_URL };
 
 const isSpent = async (output: string, showConfirmation = false) => {
   const [txid, vout] = output.split(":");
-  const { data } = await axios.get(
-    `${config.MEMPOOL_API_URL}/api/tx/${txid}/outspend/${vout}`
-  );
+  let data;
+  try {
+    const { data: mempoolData } = await axios.get(
+      `${config.MEMPOOL_API_URL}/api/tx/${txid}/outspend/${vout}`
+    );
+    data = mempoolData;
+  } catch (e) {
+    console.error(e);
+    const { data: mempoolData } = await axios.get(
+      `${MEMPOOL_API_URL_FALLBACK}/api/tx/${txid}/outspend/${vout}`
+    );
+    data = mempoolData;
+  }
+
   if (data.spent && showConfirmation) {
     const { data: last_lock_height } = await axios.get(
       `${config.MEMPOOL_API_URL}/api/blocks/tip/height`
