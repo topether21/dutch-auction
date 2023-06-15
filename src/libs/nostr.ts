@@ -1,5 +1,5 @@
 import "websocket-polyfill";
-import { getEventHash, relayInit, signEvent, Event } from "nostr-tools";
+import { getEventHash, relayInit, Event, getSignature } from "nostr-tools";
 
 const NOSTR_KIND_INSCRIPTION = 802;
 const RELAYS = [
@@ -32,7 +32,7 @@ async function sign(
 ): Promise<SignedEvent> {
   const eventBase = { ...event, created_at: Math.floor(Date.now() / 1000) };
   const newEvent = { ...eventBase, id: getEventHash(eventBase) };
-  const sig = signEvent(newEvent, privkey);
+  const sig = getSignature(newEvent, privkey);
 
   return { ...newEvent, sig };
 }
