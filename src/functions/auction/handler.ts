@@ -16,12 +16,12 @@ export const auction = async (event: APIGatewayEvent) => {
       return errorAuctionNotFound();
     }
     await checkAuctionStatus([auction]);
-    if (method === "DELETE" && auction.status === "PENDING") {
+    if (
+      method === "DELETE" &&
+      (auction.status === "PENDING" || auction.status === "RUNNING")
+    ) {
       await deleteAuctionById(auctionId);
       return createHttpResponse(200, { status: "DELETED", id: auctionId });
-    } else if (method === "DELETE" && auction.status === "RUNNING") {
-      await updateAuctionStatus(auctionId, "STOPPED");
-      return createHttpResponse(200, { ...auction, status: "STOPPED" });
     }
     return createHttpResponse(200, auction);
   } catch (error) {
