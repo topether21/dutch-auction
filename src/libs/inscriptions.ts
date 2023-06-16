@@ -31,9 +31,10 @@ const config = { MEMPOOL_API_URL };
 // }
 
 const isSpent = async (output: string, showConfirmation = false) => {
-  const [txid, vout] = output.split(":");
-  let data;
   try {
+    if (!output) return { spent: false };
+    const [txid, vout] = output.split(":");
+    let data;
     const { data: mempoolData } = await axios.get(
       `${config.MEMPOOL_API_URL}/api/tx/${txid}/outspend/${vout}`
     );
