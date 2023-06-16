@@ -1,6 +1,6 @@
 import { errorAuctionNotFound, internalServerError } from "@functions/errors";
 import { createHttpResponse } from "@libs/api-gateway";
-import { deleteAuctionById, getAuction, updateAuctionStatus } from "@libs/db";
+import { deleteAuctionById, getAuction } from "@libs/db";
 import { APIGatewayEvent } from "aws-lambda";
 import { createAuction } from "./create";
 import { checkAuctionStatus } from "@functions/shared";
