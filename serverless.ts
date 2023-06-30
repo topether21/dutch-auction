@@ -5,6 +5,7 @@ import { auction } from "@functions/auction";
 import { getAuctionsByAddress } from "@functions/auctions-by-address";
 import { auctions } from "@functions/auctions";
 import { updateAuctionStatus } from "@functions/update-auction-status";
+import { publishEvent } from "@functions/publish";
 import { finishAuction } from "@functions/finish-auction";
 import { version } from "@functions/version";
 
@@ -100,6 +101,10 @@ const serverlessConfiguration: AWSConfig = {
                 "Fn::Sub":
                   "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-updateAuctionStatus",
               },
+              {
+                "Fn::Sub":
+                  "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-publishEvent",
+              },
             ],
           },
           {
@@ -134,6 +139,7 @@ const serverlessConfiguration: AWSConfig = {
     getAuctionsByAddress,
     auctions,
     updateAuctionStatus,
+    publishEvent,
     finishAuction,
     auctionsByInscriptionId,
   },
