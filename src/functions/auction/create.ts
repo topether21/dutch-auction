@@ -1,7 +1,8 @@
-import { v4 } from "uuid";
-
 import { isSpent } from "@libs/inscriptions";
-import { getAuctionsByInscriptionId, saveAuction } from "@libs/db";
+import {
+  getAuctionsByInscriptionId,
+  saveAuction,
+} from "@libs/graphql-client-db";
 import { createHttpResponse, parseEventInput } from "@libs/api-gateway";
 
 import {
@@ -11,7 +12,7 @@ import {
   internalServerError,
 } from "@functions/errors";
 import { APIGatewayEvent } from "aws-lambda";
-import { Auction, AuctionMetadata, AuctionStatus } from "@types";
+import { AuctionInput, AuctionMetadata, AuctionStatus } from "@types";
 import { startStateMachine } from "@functions/start-state-machine";
 import { CreateAuctionSchema } from "./schema";
 
@@ -41,20 +42,22 @@ export const createAuction = async (event: APIGatewayEvent) => {
     initialPrice,
     reservePrice,
     metadata,
-    btcAddress,
+    btcAddress: ownerOrdinalsAddress,
     inscriptionId,
     output,
     collection,
+    utxoNum,
+    utxoCreatedAt,
   } = parsedEventBody.data;
 
+  const [txid = "", vout = "0"] = output.split(":");
+
   const startTime = toMilliseconds(originalStartTime);
-  const id = v4();
   const now = new Date().getTime();
   const validStartTime = startTime && startTime > now ? startTime : now + 5000; // if the time is invalid use now plus 5 seconds
   const scheduledISODate = new Date(validStartTime).toISOString();
 
-  const auction: Auction = {
-    id,
+  const auction: AuctionInput = {
     startTime: validStartTime,
     scheduledISODate,
     decreaseAmount,
@@ -66,32 +69,37 @@ export const createAuction = async (event: APIGatewayEvent) => {
         validStartTime + secondsBetweenEachDecrease * 1000 * index;
       return {
         ...(m as {}),
-        id: v4(),
         index,
-        isLastEvent: index === metadata.length - 1,
         scheduledTime,
         endTime: scheduledTime + secondsBetweenEachDecrease * 1000,
       } as AuctionMetadata;
     }),
     currentPrice: initialPrice,
     status: "PENDING" as AuctionStatus,
-    btcAddress,
+    ownerOrdinalsAddress,
     inscriptionId,
-    output,
     collection,
+    txid,
+    vout: parseInt(vout),
+    utxoNum,
+    utxoCreatedAt,
   };
   try {
-    const inscriptionStatus = await isSpent(auction.output);
+    const inscriptionStatus = await isSpent({
+      txid: auction.txid,
+      vout: auction.vout,
+    });
     if (inscriptionStatus.spent) {
       return errorAuctionIsSpent();
     }
     const auctions = await getAuctionsByInscriptionId(inscriptionId);
-    if (auctions.length > 0 && auctions.some((a) => a.status === "RUNNING")) {
+    if (auctions?.length > 0 && auctions.some((a) => a?.status === "RUNNING")) {
       return errorAuctionIsRunning();
     }
-    await saveAuction(auction);
-    await startStateMachine(auction);
-    return createHttpResponse(200, auction);
+    const savedAuction = await saveAuction(auction);
+    if (!savedAuction) return internalServerError();
+    await startStateMachine(savedAuction);
+    return createHttpResponse(200, savedAuction);
   } catch (error) {
     console.error("Error in createAuction:", error);
     return internalServerError();

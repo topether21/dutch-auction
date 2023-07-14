@@ -1,7 +1,6 @@
 import { internalServerError } from "@functions/errors";
-import { checkAuctionStatus } from "@functions/shared";
 import { createHttpResponse } from "@libs/api-gateway";
-import { getAuctionsByInscriptionId } from "@libs/db";
+import { getAuctionsByInscriptionId } from "@libs/graphql-client-db";
 import { APIGatewayEvent } from "aws-lambda";
 
 export const auctionsByInscriptionId = async (event: APIGatewayEvent) => {
@@ -9,7 +8,6 @@ export const auctionsByInscriptionId = async (event: APIGatewayEvent) => {
   if (!inscriptionId) return internalServerError();
   try {
     const auctions = await getAuctionsByInscriptionId(inscriptionId);
-    await checkAuctionStatus(auctions);
     return createHttpResponse(200, auctions);
   } catch (error) {
     console.error(error);

@@ -1,9 +1,10 @@
+import { getOutput } from "@functions/shared";
 import {
   getAuction,
   updateAuctionStatus as updateAuction,
   updateAuctionMetadata,
   updateAuctionPrice,
-} from "@libs/db";
+} from "@libs/graphql-client-db";
 import { isSpent } from "@libs/inscriptions";
 import { signAndBroadcastEvent } from "@libs/nostr";
 import { Auction, AuctionStatus } from "@types";
@@ -11,16 +12,19 @@ import { Auction, AuctionStatus } from "@types";
 export async function updateAuctionStatus(event: Auction) {
   const { id, metadata: stateMachineMetadata } = event;
   const auction = await getAuction(id);
+  if (!auction) {
+    throw new Error(`Auction with ID "${id}" not found.`);
+  }
   const auctionMetadata = auction.metadata;
   const stateMachineAuction = { ...auction, metadata: stateMachineMetadata };
   const deepCopyStateMachineAuction = JSON.parse(
     JSON.stringify(stateMachineAuction)
   );
 
-  if (!auction) {
-    throw new Error(`Auction with ID "${id}" not found.`);
-  }
-  const inscriptionStatus = await isSpent(auction.output);
+  const inscriptionStatus = await isSpent({
+    txid: auction.txid,
+    vout: auction.vout,
+  });
   if (inscriptionStatus.spent) {
     const status: AuctionStatus = "SPENT";
     await updateAuction(id, status);
@@ -54,7 +58,7 @@ export async function updateAuctionStatus(event: Auction) {
     const input = {
       pubkey: process.env.NOSTR_PUBLIC_KEY || "",
       privkey: process.env.NOSTR_PRIVATE_KEY || "",
-      output: auction.output,
+      output: getOutput(auction.txid, auction.vout),
       inscriptionId: auction.inscriptionId,
       priceInSats: currentPrice,
       signedPsbt: scheduledEvent.signedPsbt,

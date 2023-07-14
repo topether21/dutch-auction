@@ -1,4 +1,7 @@
-import { getAuction, finishAuction as dbFinishAuction } from "@libs/db";
+import {
+  getAuction,
+  finishAuction as dbFinishAuction,
+} from "@libs/graphql-client-db";
 
 type EventType = {
   id: string;

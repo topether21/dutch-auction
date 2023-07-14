@@ -4,24 +4,39 @@ export type AuctionStatus =
   | "RUNNING"
   | "PENDING"
   | "FINISHED"
-  | "CLOSED"
   | "STOPPED";
 
-export interface Auction {
+export interface AuctionInput {
   startTime: number;
   scheduledISODate: string;
-  metadata: AuctionMetadata[];
+  metadata: AuctionMetadataInput[];
   inscriptionId: string;
-  btcAddress: string;
-  output: string;
+  ownerOrdinalsAddress: string;
+  txid: string;
+  vout: number;
   status: AuctionStatus;
   decreaseAmount: number;
-  id: AuctionId;
   reservePrice: number;
   currentPrice: number;
   secondsBetweenEachDecrease: number;
   initialPrice: number;
   collection?: string;
+  utxoNum: string;
+  utxoCreatedAt: number;
+}
+
+export interface Auction extends AuctionInput {
+  id: AuctionId;
+  auctionId: AuctionId;
+  metadata: AuctionMetadata[];
+}
+
+export interface AuctionMetadataInput {
+  scheduledTime: number;
+  endTime: number;
+  price: number;
+  signedPsbt: string;
+  index: number;
 }
 
 export interface AuctionMetadata {
@@ -32,5 +47,4 @@ export interface AuctionMetadata {
   price: number;
   signedPsbt: string;
   index: number;
-  isLastEvent: boolean;
 }
