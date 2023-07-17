@@ -15,4 +15,5 @@ export const CreateAuctionSchema = z.object({
   btcAddress: z.string(),
   output: z.string(),
   inscriptionId: z.string(),
+  collection: z.string().optional(),
 });

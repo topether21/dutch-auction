@@ -21,6 +21,7 @@ export interface Auction {
   currentPrice: number;
   secondsBetweenEachDecrease: number;
   initialPrice: number;
+  collection?: string;
 }
 
 export interface AuctionMetadata {

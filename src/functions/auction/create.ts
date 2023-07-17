@@ -44,6 +44,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
     btcAddress,
     inscriptionId,
     output,
+    collection,
   } = parsedEventBody.data;
 
   const startTime = toMilliseconds(originalStartTime);
@@ -77,6 +78,7 @@ export const createAuction = async (event: APIGatewayEvent) => {
     btcAddress,
     inscriptionId,
     output,
+    collection,
   };
   try {
     const inscriptionStatus = await isSpent(auction.output);

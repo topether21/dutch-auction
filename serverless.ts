@@ -1,6 +1,7 @@
 import type { AWS } from "@serverless/typescript";
 
 import { auctionsByInscriptionId } from "@functions/auctions-by-inscription-id";
+import { auctionsByCollection } from "@functions/auctions-by-collection";
 import { auction } from "@functions/auction";
 import { getAuctionsByAddress } from "@functions/auctions-by-address";
 import { auctions } from "@functions/auctions";
@@ -87,6 +88,10 @@ const serverlessConfiguration: AWSConfig = {
               },
               {
                 "Fn::Sub":
+                  "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-auctionsByCollection",
+              },
+              {
+                "Fn::Sub":
                   "arn:aws:lambda:${self:provider.region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-auctions",
               },
               {
@@ -142,6 +147,7 @@ const serverlessConfiguration: AWSConfig = {
     publishEvent,
     finishAuction,
     auctionsByInscriptionId,
+    auctionsByCollection,
   },
   stepFunctions: {
     stateMachines: {
