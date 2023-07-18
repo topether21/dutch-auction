@@ -1,9 +1,10 @@
 import { internalServerError } from "@functions/errors";
-import { createHttpResponse } from "@libs/api-gateway";
+import { createHttpResponse, validateWarm } from "@libs/api-gateway";
 import { getAuctionsByInscriptionId } from "@libs/graphql-client-db";
 import { APIGatewayEvent } from "aws-lambda";
 
 export const auctionsByInscriptionId = async (event: APIGatewayEvent) => {
+  validateWarm(event);
   const inscriptionId = event.pathParameters?.inscriptionId;
   if (!inscriptionId) return internalServerError();
   try {
