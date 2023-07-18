@@ -30,10 +30,14 @@ const config = { MEMPOOL_API_URL };
 //   "spent": false
 // }
 
-const isSpent = async (output: string, showConfirmation = false) => {
-  if (!output) return { spent: false };
+type IsSpent = {
+  txid: string;
+  vout: number;
+  showConfirmation?: boolean;
+};
+
+const isSpent = async ({ txid, vout, showConfirmation = false }: IsSpent) => {
   let data;
-  const [txid, vout] = output.split(":");
   if (!txid || !vout) return { spent: false };
   try {
     const { data: mempoolData } = await axios.get(

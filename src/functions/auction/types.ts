@@ -5,9 +5,12 @@ export interface CreateAuction {
   initialPrice: number;
   reservePrice: number;
   metadata: Metadata[];
-  btcAddress: string;
+  ownerOrdinalsAddress: string;
   output: string;
   inscriptionId: string;
+  collection?: string;
+  utxoNum: string;
+  utxoCreatedAt: number;
 }
 
 interface Metadata {

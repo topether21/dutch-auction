@@ -34,34 +34,13 @@ const serverlessConfiguration: AWSConfig = {
       AWS_ACCOUNT_ID: {
         Ref: "AWS::AccountId",
       },
-      DYNAMODB_TABLE: "AuctionStates-${self:provider.stage}",
       NOSTR_PUBLIC_KEY:
         "be82246ca8d64881cc53407a773e33f9e220dc2153c52bb713a9ab1fe6a18d80",
+      HASURA_ENDPOINT: "https://guiding-elf-27.hasura.app/v1/graphql",
     },
     iam: {
       role: {
         statements: [
-          {
-            Effect: "Allow",
-            Action: [
-              "dynamodb:Query",
-              "dynamodb:Scan",
-              "dynamodb:GetItem",
-              "dynamodb:PutItem",
-              "dynamodb:UpdateItem",
-              "dynamodb:DeleteItem",
-            ],
-            Resource: [
-              {
-                "Fn::Sub":
-                  "arn:aws:dynamodb:${opt:region, self:provider.region}:${AWS::AccountId}:table/${self:provider.environment.DYNAMODB_TABLE}",
-              },
-              {
-                "Fn::Sub":
-                  "arn:aws:dynamodb:${opt:region, self:provider.region}:${AWS::AccountId}:table/${self:provider.environment.DYNAMODB_TABLE}/index/*",
-              },
-            ],
-          },
           {
             Effect: "Allow",
             Action: ["states:StartExecution"],
@@ -131,6 +110,10 @@ const serverlessConfiguration: AWSConfig = {
               {
                 "Fn::Sub":
                   "arn:aws:ssm:${self:provider.region}:${AWS::AccountId}:parameter/NOSTR_PRIVATE_KEY",
+              },
+              {
+                "Fn::Sub":
+                  "arn:aws:ssm:${self:provider.region}:${AWS::AccountId}:parameter/HASURA_ADMIN_SECRET",
               },
             ],
           },
@@ -210,72 +193,7 @@ const serverlessConfiguration: AWSConfig = {
     },
   },
   resources: {
-    Resources: {
-      AuctionStatesTable: {
-        Type: "AWS::DynamoDB::Table",
-        Properties: {
-          TableName: "${self:provider.environment.DYNAMODB_TABLE}",
-          AttributeDefinitions: [
-            {
-              AttributeName: "id",
-              AttributeType: "S",
-            },
-            {
-              AttributeName: "btcAddress",
-              AttributeType: "S",
-            },
-            {
-              AttributeName: "inscriptionId",
-              AttributeType: "S",
-            },
-          ],
-          KeySchema: [
-            {
-              AttributeName: "id",
-              KeyType: "HASH",
-            },
-          ],
-          ProvisionedThroughput: {
-            ReadCapacityUnits: 1,
-            WriteCapacityUnits: 1,
-          },
-          GlobalSecondaryIndexes: [
-            {
-              IndexName: "btcAddress-index",
-              KeySchema: [
-                {
-                  AttributeName: "btcAddress",
-                  KeyType: "HASH",
-                },
-              ],
-              ProvisionedThroughput: {
-                ReadCapacityUnits: 1,
-                WriteCapacityUnits: 1,
-              },
-              Projection: {
-                ProjectionType: "ALL",
-              },
-            },
-            {
-              IndexName: "inscriptionId-index",
-              KeySchema: [
-                {
-                  AttributeName: "inscriptionId",
-                  KeyType: "HASH",
-                },
-              ],
-              ProvisionedThroughput: {
-                ReadCapacityUnits: 1,
-                WriteCapacityUnits: 1,
-              },
-              Projection: {
-                ProjectionType: "ALL",
-              },
-            },
-          ],
-        },
-      },
-    },
+    Resources: {},
   },
   custom: {
     esbuild: {
@@ -290,6 +208,7 @@ const serverlessConfiguration: AWSConfig = {
     },
     serverlessSsmFetch: {
       NOSTR_PRIVATE_KEY: "NOSTR_PRIVATE_KEY~true",
+      HASURA_ADMIN_SECRET: "HASURA_ADMIN_SECRET~true",
     },
     customHeaders: [
       "Content-Type",

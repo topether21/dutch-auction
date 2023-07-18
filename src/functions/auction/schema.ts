@@ -14,6 +14,8 @@ export const CreateAuctionSchema = z.object({
   metadata: z.array(AuctionMetadataSchema),
   btcAddress: z.string(),
   output: z.string(),
+  utxoNum: z.string().default(""),
+  utxoCreatedAt: z.number().default(0),
   inscriptionId: z.string(),
   collection: z.string().optional(),
 });
